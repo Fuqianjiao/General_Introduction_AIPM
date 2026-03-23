@@ -35,6 +35,14 @@ npm run dev
 ```
 打开 http://localhost:3000
 
+### 背景音乐卡顿？
+
+全站 BGM 在 `components/BackgroundMusic.tsx`。**优先播放** `public/audio/prosecco.mp3`（体积小、解码省 CPU）；若无则回退 `prosecco.flac`。若只听 FLAC 时感觉「一顿一顿」，多半是解码 + 页面动画/dev 热更新抢主线程，建议生成 MP3：
+
+```bash
+ffmpeg -i public/audio/prosecco.flac -q:a 2 public/audio/prosecco.mp3
+```
+
 ## 部署到 Vercel
 
 1. 把代码推送到 GitHub

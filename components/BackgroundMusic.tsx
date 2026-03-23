@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * 全站背景音乐（Prosecco - Patrik Jean · FLAC）
+ * 全站背景音乐（Prosecco - Patrik Jean）
+ *
+ * 优先使用 **MP3**（`/audio/prosecco.mp3`）：体积小、解码轻，不易与页面动画/主线程抢资源导致「卡顿感」。
+ * 若无 mp3 会回退 **FLAC**；FLAC 无损解码更重，在 dev 模式或多动画时更容易断续。
+ * 本地转换示例：`ffmpeg -i prosecco.flac -q:a 2 public/audio/prosecco.mp3`
+ *
  * 进入页面会尝试自动播放；若被浏览器拦截，点喇叭或面板内「开始播放」。
  */
 export default function BackgroundMusic() {
@@ -83,13 +88,15 @@ export default function BackgroundMusic() {
     <>
       <audio
         ref={audioRef}
-        src="/audio/prosecco.flac"
         loop
         preload="auto"
         playsInline
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-      />
+      >
+        <source src="/audio/prosecco.mp3" type="audio/mpeg" />
+        <source src="/audio/prosecco.flac" type="audio/flac" />
+      </audio>
 
       <div
         id="bg-music-root"

@@ -117,7 +117,7 @@ function WelcomeAnchor() {
         你好！我是傅倩娇的 AI 助手。
         <br />
         <span style={{ color: "#a898ff" }}>
-          你是想了解她的项目经历、技术能力，还是直接看她对 AI 笔记的产品看法？
+          可问核心项目（千牛电商客服全托管对话系统、飞棋RPA工具全链路AI能力升级）、技术能力，或她对 AI 笔记的产品看法。
         </span>
       </div>
     </div>
@@ -414,12 +414,14 @@ export default function AiBot({ navigate, currentPage }: Props) {
 
   useCopilotAction({
     name: "showProjectHighlights",
-    description: "展示某个项目的核心亮点和数据指标。当用户询问项目细节时调用。",
+    description:
+      "展示单个项目的核心亮点与指标卡片（含跳转 STAR 页按钮）。用户问「有哪些核心项目/项目经历」等总览时须各调一次 qianniu 与 feiqí；用户只问某一个项目时只调对应 id。",
     parameters: [
       {
         name: "projectId",
         type: "string",
-        description: "项目ID：'qianniu'=千牛对话系统, 'feiqí'=飞棋RPA",
+        description:
+          "项目ID：'qianniu'=千牛电商客服全托管对话系统（跳转 project 页）, 'feiqí'=飞棋RPA工具全链路AI能力升级（跳转 project2 页）",
         enum: ["qianniu", "feiqí"],
         required: true,
       },
@@ -840,13 +842,14 @@ export default function AiBot({ navigate, currentPage }: Props) {
 1) 分流：用户开口后先用一句话对齐意图：项目/技术、AI 笔记观点、岗位匹配，还是联系方式；不要重复朗读整段欢迎语。
 2) 用户可用顶部快捷按钮发起问题；若已发起，直接执行对应能力，少废话。
 3) 调用 function 时，用户会在上方看到橙色「正在检索…」状态条；正文保持简洁。
-4) 结构化优先：问项目、指标、STAR 时必须先 showProjectHighlights 出卡片（指标 badge + STAR 按钮），禁止只用长文字堆砌数据。
-5) AI 笔记总览：用户问「整体看法、有哪些洞察、AI笔记、NotebookLM」等未指定单点时，只调用 showAiNotebookOpinionsAll（无参数）。卡片内已按第一点、第二点、第三点展示全部内容。
-6) AI 笔记单点：仅当用户明确追问某一子话题时，调用 showAiNotebookOpinion 并选对 opinionId。
-7) 【硬性禁止】调用 showAiNotebookOpinionsAll 或 showAiNotebookOpinion 之后，正文中不得再写编号列表或自然段去复述卡片里已有的标题、缺口、建议；最多允许≤15字短承接（如「需要展开哪一点？」）或结束。
-8) 联系：调用 getContactInfo。
-9) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游。跳转后聊天窗会保持打开，用户可继续追问。
-10) 多轮上下文：你会收到「本地持久化对话记忆」含最近 3 条摘要与长期摘要；请连贯承接，除非用户明确换话题。
+4) **核心项目总览**（如「她有哪些核心项目经历」「有哪些核心项目」「项目经历有哪些」）：正文最多 1～2 句总起；**必须依次**调用 showProjectHighlights(projectId='qianniu') 与 showProjectHighlights(projectId='feiqí') **各一次**，让用户通过卡片主入口了解并跳转：①千牛电商客服全托管对话系统（STAR 详解页 project）；②飞棋RPA工具全链路AI能力升级（STAR 详解页 project2）。**禁止**用长段落罗列两项目的指标而不出这两条卡片；指标与 STAR 以卡片为准，正文可一句提示「点卡片查看完整 STAR」。
+5) 结构化优先（单项目或深挖）：问某一项目细节、指标、STAR 时必须先 showProjectHighlights 出对应项目卡片，禁止只用长文字堆砌数据。
+6) AI 笔记总览：用户问「整体看法、有哪些洞察、AI笔记、NotebookLM」等未指定单点时，只调用 showAiNotebookOpinionsAll（无参数）。卡片内已按第一点、第二点、第三点展示全部内容。
+7) AI 笔记单点：仅当用户明确追问某一子话题时，调用 showAiNotebookOpinion 并选对 opinionId。
+8) 【硬性禁止】调用 showAiNotebookOpinionsAll 或 showAiNotebookOpinion 之后，正文中不得再写编号列表或自然段去复述卡片里已有的标题、缺口、建议；最多允许≤15字短承接（如「需要展开哪一点？」）或结束。
+9) 联系：调用 getContactInfo。
+10) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游。跳转后聊天窗会保持打开，用户可继续追问。
+11) 多轮上下文：你会收到「本地持久化对话记忆」含最近 3 条摘要与长期摘要；请连贯承接，除非用户明确换话题。
 
 风格：中文、专业简洁、产品经理视角。`;
 
