@@ -278,9 +278,20 @@ export default function AiBot({ navigate, currentPage }: Props) {
   const [keyPanelOpen, setKeyPanelOpen] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const siliconflowCtx = useSiliconflowUserKeyOptional();
+  const keyAutoOpenedRef = useRef(false);
   const { appendMessage, visibleMessages } = useCopilotChat();
   const [chatMemory, setChatMemory] = useState<StoredChatMemory>(() => loadChatMemory());
   const memorySyncSig = useRef("");
+
+  /** 服务端未配置 Key 时，首次打开面板自动展开配置区，避免用户不知道要填哪 */
+  useEffect(() => {
+    if (!open || !siliconflowCtx) return;
+    if (siliconflowCtx.userApiKey) return;
+    if (siliconflowCtx.serverKeyConfigured !== false) return;
+    if (keyAutoOpenedRef.current) return;
+    setKeyPanelOpen(true);
+    keyAutoOpenedRef.current = true;
+  }, [open, siliconflowCtx]);
 
   useCopilotReadable({
     description: "傅倩娇的完整简历信息、工作经历、项目经历和技能",
@@ -774,14 +785,37 @@ export default function AiBot({ navigate, currentPage }: Props) {
     },
   });
 
-  const statusLine =
-    status === "ready"
-      ? "● 就绪"
-      : status === "thinking"
-        ? "● 思考中..."
-        : "● 错误";
+  const usingOwnKey = Boolean(siliconflowCtx?.userApiKey);
+  const serverReady = siliconflowCtx?.serverKeyConfigured === true;
+  const serverMissing = siliconflowCtx?.serverKeyConfigured === false;
 
-  const statusColor = status === "ready" ? "#00e5ff" : status === "thinking" ? "#f0a040" : "#ff6b6b";
+  const statusLine =
+    status === "thinking"
+      ? "● 思考中..."
+      : status === "error"
+        ? "● 错误"
+        : serverMissing && !usingOwnKey
+          ? "● 请先完成 API 配置"
+          : serverReady && !usingOwnKey
+            ? "● 就绪 · 开箱即用"
+            : usingOwnKey
+              ? "● 就绪 · 自有 Key"
+              : "● 就绪";
+
+  const statusColor =
+    status === "thinking"
+      ? "#f0a040"
+      : status === "error"
+        ? "#ff6b6b"
+        : serverMissing && !usingOwnKey
+          ? "#f0a040"
+          : "#00e5ff";
+
+  /** 站点已在服务端配好 Key 时，不在标题栏强调「API」入口，减少小白认知负担 */
+  const hideHeaderApiButton =
+    siliconflowCtx?.serverKeyConfigured === true && !siliconflowCtx?.userApiKey;
+  const apiButtonLabel =
+    serverMissing && !usingOwnKey ? "配置 API" : "API";
 
   /** 走 CopilotKit 官方 API；勿改 DOM：输入框是受控组件，伪造 input/submit 不会更新 React state，也不会触发发送 */
   const submitCopilotQuestion = (q: string) => {
@@ -915,26 +949,33 @@ export default function AiBot({ navigate, currentPage }: Props) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {siliconflowCtx && (
+            {siliconflowCtx && !hideHeaderApiButton && (
               <button
                 type="button"
-                title="配置硅基流动 API Key（可选）"
+                title={
+                  serverMissing && !usingOwnKey
+                    ? "需要配置硅基流动 API Key，或部署时设置 SILICONFLOW_API_KEY"
+                    : "配置硅基流动 API Key（可选，覆盖站点默认）"
+                }
                 onClick={() => {
                   setKeyPanelOpen((v) => !v);
                   setKeyDraft(siliconflowCtx.userApiKey ?? "");
                 }}
                 style={{
                   background: siliconflowCtx.userApiKey ? "rgba(0,229,255,0.12)" : "none",
-                  border: "1px solid rgba(0,229,255,0.2)",
+                  border:
+                    serverMissing && !usingOwnKey
+                      ? "1px solid rgba(240,160,64,0.45)"
+                      : "1px solid rgba(0,229,255,0.2)",
                   borderRadius: 4,
                   padding: "2px 6px",
                   cursor: "pointer",
                   fontSize: 9,
-                  color: "#7fe8f5",
+                  color: serverMissing && !usingOwnKey ? "#f0c080" : "#7fe8f5",
                   letterSpacing: "0.06em",
                 }}
               >
-                API
+                {apiButtonLabel}
               </button>
             )}
             <button
@@ -973,7 +1014,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 letterSpacing: "0.04em",
               }}
             >
-              硅基流动 API Key（可选）
+              {serverMissing && !usingOwnKey
+                ? "需要硅基流动 API Key"
+                : "硅基流动 API Key（可选）"}
             </div>
             <p
               style={{
@@ -983,7 +1026,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 lineHeight: 1.55,
               }}
             >
-              不填则使用服务器上的 SILICONFLOW_API_KEY（本地为 .env.local，线上为 Vercel 环境变量），Key 不会下发到浏览器。填写后仅保存在本机浏览器并随请求发送（请仅在 HTTPS 使用）。
+              {serverMissing && !usingOwnKey
+                ? "当前站点未在服务器配置 SILICONFLOW_API_KEY（且无内置兜底）。请在此填写你的 Key 并保存；或在 .env.local / Vercel 环境变量中配置后重新部署。填写后仅保存在本机浏览器（请仅在 HTTPS 使用）。"
+                : "默认已使用服务器上的 SILICONFLOW_API_KEY（本地 .env.local、线上 Vercel），无需在此填写即可对话。仅在希望使用自己的 Key 时填写；保存后仅存在本机浏览器并随请求发送（请仅在 HTTPS 使用）。"}
             </p>
             <input
               type="password"
@@ -1100,6 +1145,38 @@ export default function AiBot({ navigate, currentPage }: Props) {
             className="copilot-custom"
           />
         </div>
+
+        {siliconflowCtx?.serverKeyConfigured === true && !siliconflowCtx.userApiKey && (
+          <div
+            style={{
+              flexShrink: 0,
+              padding: "6px 14px 10px",
+              borderTop: "1px solid rgba(255,255,255,0.05)",
+              textAlign: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setKeyPanelOpen(true);
+                setKeyDraft(siliconflowCtx.userApiKey ?? "");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: "4px 8px",
+                cursor: "pointer",
+                fontSize: 9,
+                color: "rgba(255,255,255,0.28)",
+                letterSpacing: "0.04em",
+                textDecoration: "underline",
+                textUnderlineOffset: 2,
+              }}
+            >
+              使用自己的硅基流动 Key（可选）
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

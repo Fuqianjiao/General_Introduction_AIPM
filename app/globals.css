@@ -36,14 +36,15 @@ body {
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
  */
 .copilotKitChat.copilot-custom {
-  /* 统一气泡（对齐图1）：用户 / 助手正文 / 底部追问，多轮对话同一套 */
+  /* 统一气泡（微信式：左右气泡同一字号、行高、内边距、最大宽度） */
   --ck-bubble-font-size: 15px;
   --ck-bubble-line-height: 1.55;
   --ck-bubble-font-weight: 400;
+  --ck-bubble-max-width: min(92%, 20rem);
   --ck-bubble-bg: rgba(255, 255, 255, 0.085);
   --ck-bubble-border: 1px solid rgba(255, 255, 255, 0.12);
   --ck-bubble-radius: 22px;
-  --ck-bubble-padding: 12px 18px;
+  --ck-bubble-padding: 12px 16px;
   --ck-bubble-text: #f4f4f5;
   --ck-bubble-text-muted: #f4f4f5;
   --copilot-kit-primary-color: #e8eaf0;
@@ -115,9 +116,14 @@ body {
   font-size: var(--ck-bubble-font-size) !important;
   line-height: var(--ck-bubble-line-height) !important;
   font-weight: var(--ck-bubble-font-weight) !important;
+  font-family: "Noto Sans SC", sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* 用户消息：整块即气泡，宽度随文案（与图1一致），过长则换行限宽 */
+/*
+ * 用户气泡：强制覆盖 CopilotKit 默认 user 的 1rem / line-height 1.75，与助手 Markdown 完全一致
+ */
 .copilot-custom .copilotKitUserMessage {
   background: var(--ck-bubble-bg) !important;
   border: var(--ck-bubble-border) !important;
@@ -125,8 +131,13 @@ body {
   padding: var(--ck-bubble-padding) !important;
   box-shadow: none !important;
   width: fit-content !important;
-  max-width: min(92%, 20rem) !important;
+  max-width: var(--ck-bubble-max-width) !important;
+  box-sizing: border-box !important;
   color: var(--ck-bubble-text) !important;
+  font-size: var(--ck-bubble-font-size) !important;
+  line-height: var(--ck-bubble-line-height) !important;
+  font-weight: var(--ck-bubble-font-weight) !important;
+  font-family: "Noto Sans SC", sans-serif !important;
   margin-left: auto !important;
   margin-right: 0 !important;
   white-space: pre-wrap !important;
@@ -159,23 +170,49 @@ body {
   border-radius: var(--ck-bubble-radius) !important;
   padding: var(--ck-bubble-padding) !important;
   box-sizing: border-box !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  /* 与用户气泡一致：随内容宽度，上限相同（避免助手条拉满屏显得字「变小」） */
+  width: fit-content !important;
+  max-width: var(--ck-bubble-max-width) !important;
+  min-width: 0 !important;
   font-size: var(--ck-bubble-font-size) !important;
   line-height: var(--ck-bubble-line-height) !important;
   font-weight: var(--ck-bubble-font-weight) !important;
+  font-family: "Noto Sans SC", sans-serif !important;
   color: var(--ck-bubble-text) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Markdown 内部元素继承同一字号行高，避免列表/段落变小 */
+/*
+ * 覆盖 @copilotkit markdown.css 的 p/h 的 1rem、1.75、多级标题放大 —— 微信对话感：正文统一 15px
+ */
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown .copilotKitMarkdownElement,
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p,
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown li,
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ul,
-.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ol {
-  font-size: inherit !important;
-  line-height: inherit !important;
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ol,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown blockquote {
+  font-size: var(--ck-bubble-font-size) !important;
+  line-height: var(--ck-bubble-line-height) !important;
+  font-weight: var(--ck-bubble-font-weight) !important;
   color: inherit !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown :is(h1, h2, h3, h4, h5, h6).copilotKitMarkdownElement {
+  font-size: var(--ck-bubble-font-size) !important;
+  line-height: var(--ck-bubble-line-height) !important;
+  font-weight: 600 !important;
+  color: inherit !important;
+  margin: 0 0 0.45em !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown :is(h1, h2, h3, h4, h5, h6).copilotKitMarkdownElement:last-child {
+  margin-bottom: 0 !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown strong,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown b {
+  font-weight: 600 !important;
 }
 
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p {
@@ -184,6 +221,13 @@ body {
 
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p:last-child {
   margin-bottom: 0 !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown pre.copilotKitMarkdownElement,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown .copilotKitCodeBlock {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  box-sizing: border-box !important;
 }
 
 /* 操作栏：在气泡盒子之外，略下移 */
@@ -236,7 +280,7 @@ body {
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading) {
   width: fit-content !important;
-  max-width: min(100%, 20rem) !important;
+  max-width: var(--ck-bubble-max-width) !important;
   box-sizing: border-box !important;
   display: flex !important;
   align-items: center !important;

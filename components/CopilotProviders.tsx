@@ -18,6 +18,11 @@ type Ctx = {
    */
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
+  /**
+   * GET /api/copilotkit：服务端是否已有可用 Key（环境变量或代码兜底）。
+   * null 表示尚未拉取完成。
+   */
+  serverKeyConfigured: boolean | null;
 };
 
 const SiliconflowKeyContext = createContext<Ctx | null>(null);
@@ -41,6 +46,7 @@ export function useSiliconflowUserKeyOptional(): Ctx | null {
 export function CopilotProviders({ children }: { children: ReactNode }) {
   /** 浏览器覆盖；null = 交给服务端环境变量 */
   const [overrideKey, setOverrideKey] = useState<string | null>(null);
+  const [serverKeyConfigured, setServerKeyConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
     try {
@@ -49,6 +55,22 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
     } catch {
       /* private 模式等 */
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/copilotkit")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { serverKeyConfigured?: boolean } | null) => {
+        if (cancelled || !j || typeof j.serverKeyConfigured !== "boolean") return;
+        setServerKeyConfigured(j.serverKeyConfigured);
+      })
+      .catch(() => {
+        if (!cancelled) setServerKeyConfigured(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const setUserApiKey = useCallback((key: string | null) => {
@@ -72,8 +94,12 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
   }, [overrideKey]);
 
   const ctx = useMemo(
-    () => ({ userApiKey: overrideKey, setUserApiKey }),
-    [overrideKey, setUserApiKey],
+    () => ({
+      userApiKey: overrideKey,
+      setUserApiKey,
+      serverKeyConfigured,
+    }),
+    [overrideKey, setUserApiKey, serverKeyConfigured],
   );
 
   return (

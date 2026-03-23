@@ -34,6 +34,13 @@ function resolveApiKey(req: NextRequest): string {
   return SILICONFLOW_DEFAULT_API_KEY.trim();
 }
 
+/** 供 GET 健康检查：不暴露 Key，仅告知前端是否可走「零浏览器配置」 */
+function serverHasConfiguredSiliconflowKey(): boolean {
+  return Boolean(
+    process.env.SILICONFLOW_API_KEY?.trim() || SILICONFLOW_DEFAULT_API_KEY.trim(),
+  );
+}
+
 /** 按 API Key 缓存 Hono handler，避免每请求重建 Runtime（更稳、更快） */
 const handleByApiKey = new Map<string, (req: NextRequest) => Promise<Response>>();
 
@@ -91,6 +98,8 @@ export async function GET() {
     service: "copilotkit",
     baseURL,
     model,
+    /** true：访客无需在网页填写 Key 即可对话（环境变量或服务端兜底） */
+    serverKeyConfigured: serverHasConfiguredSiliconflowKey(),
     tip: "若仍 Not Found：检查 SILICONFLOW_MODEL；另需保证兼容网关支持流式 /v1/chat/completions（CopilotKit 已把 beta.stream 代理到标准路径以适配硅基流动）。",
   });
 }
