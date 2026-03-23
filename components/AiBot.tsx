@@ -1,12 +1,13 @@
 "use client";
 // components/AiBot.tsx — 对话框结构与设计稿 ai_bot_design_spec.html 对齐
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   useCopilotReadable,
   useCopilotAction,
   useCopilotChat,
 } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
+import { CopilotAssistantMessage } from "@/components/CopilotAssistantMessage";
 import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
 import { RESUME_DATA } from "@/lib/resumeData";
 import type { PageName } from "@/app/page";
@@ -19,6 +20,11 @@ import {
   type StoredChatMemory,
 } from "@/lib/copilotLocalMemory";
 
+/** 与聊天气泡统一的正文字号（与 globals --ck-bubble-font-size 一致） */
+const CARD_BODY_PX = 14;
+const CARD_MUTED_PX = 12;
+const CARD_BADGE_PX = 12;
+
 interface Props {
   navigate: (page: PageName) => void;
   currentPage: PageName;
@@ -29,8 +35,22 @@ const QUICK_ACTIONS: { label: string; q: string; variant: "tech" | "contact" }[]
   { label: "核心项目", q: "她有哪些核心项目经历？", variant: "tech" },
   { label: "AI笔记看法", q: "她对 AI 笔记产品有什么洞察？", variant: "tech" },
   { label: "岗位匹配度", q: "她与阿里 AI 笔记岗位的匹配度如何？", variant: "tech" },
-  { label: "联系她", q: "怎么联系傅倩娇？", variant: "contact" },
+  { label: "联系她", q: "我想联系傅倩娇，请提供她的联系方式。", variant: "contact" },
 ];
+
+/** 首次欢迎 + 顶部快捷条仅展示一次；之后推荐问题走 Copilot 底部 suggestions */
+const CHAT_ONBOARDING_STORAGE_KEY = "fuqianjiao_ai_chat_onboarding_done_v1";
+
+function readChatOnboardingDone(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(CHAT_ONBOARDING_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+type ChatSuggestionItem = { title: string; message: string; className?: string };
 
 function quickChipStyle(variant: "tech" | "contact", hover: boolean): CSSProperties {
   if (variant === "contact") {
@@ -45,6 +65,656 @@ function quickChipStyle(variant: "tech" | "contact", hover: boolean): CSSPropert
     border: `1px solid ${hover ? "rgba(0,229,255,0.35)" : "rgba(0,229,255,0.18)"}`,
     color: hover ? "#9ef5ff" : "#7fe8f5",
   };
+}
+
+type ResumeProject = (typeof RESUME_DATA.projects)[number];
+
+/** 单项目结构化卡片（指标 + STAR 跳转），标题/正文强制换行不顶破边框 */
+function ProjectHighlightCardUI({
+  project,
+  actionStatus,
+  navigate,
+  setOpen,
+}: {
+  project: ResumeProject;
+  actionStatus: string;
+  navigate: (page: PageName) => void;
+  setOpen: (open: boolean) => void;
+}) {
+  const metrics = Object.values(project.metrics);
+  const starPage: PageName = project.id === "qianniu" ? "project" : "project2";
+  const busy = actionStatus === "executing" || actionStatus === "inProgress";
+  return (
+    <div
+      style={{
+        margin: "4px 0",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          background: "rgba(0,229,255,0.04)",
+          border: "1px solid rgba(0,229,255,0.15)",
+          borderRadius: 7,
+          padding: "10px 12px",
+          boxSizing: "border-box",
+          maxWidth: "100%",
+          overflow: "hidden",
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+        }}
+      >
+        <div
+          style={{
+            fontSize: CARD_MUTED_PX,
+            color: "#00e5ff",
+            letterSpacing: "0.1em",
+            marginBottom: 6,
+          }}
+        >
+          {busy ? "◆ 加载中…" : "◆ 项目亮点"}
+        </div>
+        <div
+          style={{
+            fontSize: CARD_BODY_PX,
+            color: "#e8eaf0",
+            fontWeight: 500,
+            marginBottom: 8,
+            lineHeight: 1.45,
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          }}
+        >
+          {project.name}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            marginBottom: 8,
+            maxWidth: "100%",
+          }}
+        >
+          {metrics.map((m, i) => (
+            <span
+              key={i}
+              style={{
+                background: "rgba(123,97,255,0.12)",
+                border: "1px solid rgba(123,97,255,0.25)",
+                color: "#a898ff",
+                fontSize: CARD_BADGE_PX,
+                padding: "3px 8px",
+                borderRadius: 3,
+                lineHeight: 1.35,
+                maxWidth: "100%",
+                wordBreak: "break-word",
+                overflowWrap: "break-word",
+                boxSizing: "border-box",
+              }}
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            navigate(starPage);
+            setOpen(false);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+            cursor: "pointer",
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 4,
+            padding: "8px 10px",
+            fontFamily: "'Noto Sans SC',sans-serif",
+            boxSizing: "border-box",
+          }}
+        >
+          <span style={{ fontSize: CARD_BODY_PX, color: "#7a8090" }}>查看完整 STAR 拆解</span>
+          <span style={{ fontSize: CARD_BODY_PX, color: "#00e5ff" }}>→</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type SkillsSectionId = "ai" | "lowcode" | "product";
+
+function skillsStackChipStyle(section: SkillsSectionId, emphasis: boolean): CSSProperties {
+  if (section === "ai") {
+    return emphasis
+      ? {
+          background: "rgba(0,229,255,0.1)",
+          border: "1px solid rgba(0,229,255,0.3)",
+          color: "#7fe8f5",
+          fontSize: 11,
+          padding: "3px 9px",
+          borderRadius: 4,
+          fontWeight: 500,
+          maxWidth: "100%",
+          wordBreak: "break-word",
+          boxSizing: "border-box",
+        }
+      : {
+          background: "rgba(0,229,255,0.05)",
+          border: "1px solid rgba(0,229,255,0.12)",
+          color: "#7a9ea5",
+          fontSize: 11,
+          padding: "3px 9px",
+          borderRadius: 4,
+          maxWidth: "100%",
+          wordBreak: "break-word",
+          boxSizing: "border-box",
+        };
+  }
+  if (section === "lowcode") {
+    return emphasis
+      ? {
+          background: "rgba(123,97,255,0.12)",
+          border: "1px solid rgba(123,97,255,0.3)",
+          color: "#a898ff",
+          fontSize: 11,
+          padding: "3px 9px",
+          borderRadius: 4,
+          fontWeight: 500,
+          maxWidth: "100%",
+          wordBreak: "break-word",
+          boxSizing: "border-box",
+        }
+      : {
+          background: "rgba(123,97,255,0.06)",
+          border: "1px solid rgba(123,97,255,0.15)",
+          color: "#8878c0",
+          fontSize: 11,
+          padding: "3px 9px",
+          borderRadius: 4,
+          maxWidth: "100%",
+          wordBreak: "break-word",
+          boxSizing: "border-box",
+        };
+  }
+  return {
+    background: "rgba(74,168,160,0.08)",
+    border: "1px solid rgba(74,168,160,0.2)",
+    color: "#5cbcb4",
+    fontSize: 11,
+    padding: "3px 9px",
+    borderRadius: 4,
+    maxWidth: "100%",
+    wordBreak: "break-word",
+    boxSizing: "border-box",
+  };
+}
+
+/** 技术栈结构化卡片（对齐 skills_card 设计稿） */
+function SkillsStackCardUI({
+  busy,
+  navigate,
+  setOpen,
+}: {
+  busy: boolean;
+  navigate: (page: PageName) => void;
+  setOpen: (open: boolean) => void;
+}) {
+  const data = RESUME_DATA.skillsChatCard;
+  return (
+    <div
+      style={{
+        margin: "4px 0",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
+      }}
+    >
+      <div
+        style={{
+          background: "#0d0f14",
+          border: "1px solid rgba(0,229,255,0.2)",
+          borderRadius: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#00e5ff",
+              letterSpacing: "0.12em",
+              marginBottom: 3,
+            }}
+          >
+            {busy ? "◆ 加载中…" : "◆ 技术能力图谱"}
+          </div>
+          <div style={{ fontSize: 13, color: "#e8eaf0", fontWeight: 500 }}>核心技术栈 · 傅倩娇</div>
+        </div>
+
+        {data.sections.map((sec) => (
+          <div
+            key={sec.id}
+            style={{
+              padding: "10px 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.05)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <div
+                style={{
+                  width: 3,
+                  height: 12,
+                  background: sec.barColor,
+                  borderRadius: 2,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 10, color: sec.titleColor, letterSpacing: "0.1em" }}>{sec.title}</span>
+              {sec.rightBadge ? (
+                <span style={{ fontSize: 9, color: "#7a8090", marginLeft: "auto" }}>{sec.rightBadge}</span>
+              ) : null}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {sec.chips.map((ch, i) => (
+                <span
+                  key={`${sec.id}-${i}-${ch.label}`}
+                  style={skillsStackChipStyle(sec.id, sec.id === "product" ? true : ch.emphasis)}
+                >
+                  {ch.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#7a8090",
+              letterSpacing: "0.1em",
+              marginBottom: 7,
+            }}
+          >
+            {data.deliveryNote}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {data.delivery.map((cell) => (
+              <div
+                key={cell.label}
+                style={{
+                  flex: "1 1 80px",
+                  minWidth: 72,
+                  background: "rgba(0,229,255,0.04)",
+                  border: "1px solid rgba(0,229,255,0.1)",
+                  borderRadius: 5,
+                  padding: "8px 10px",
+                  textAlign: "center",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#00e5ff", lineHeight: 1 }}>{cell.value}</div>
+                <div style={{ fontSize: 9, color: "#7a8090", marginTop: 3 }}>{cell.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ padding: "10px 14px" }}>
+          <button
+            type="button"
+            onClick={() => {
+              navigate(data.cta.targetPage);
+              setOpen(false);
+            }}
+            style={{
+              width: "100%",
+              background: "rgba(0,229,255,0.06)",
+              border: "1px solid rgba(0,229,255,0.18)",
+              borderRadius: 6,
+              padding: "8px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              fontFamily: "'Noto Sans SC',sans-serif",
+              boxSizing: "border-box",
+            }}
+          >
+            <span style={{ fontSize: 11, color: "#7fe8f5", textAlign: "left" }}>{data.cta.label}</span>
+            <span style={{ fontSize: 12, color: "#00e5ff", flexShrink: 0 }}>→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 岗位匹配度结构化卡片（对齐 match_score_card 设计稿）+ 底部双 CTA */
+function JobMatchCardWithContact({
+  busy,
+  navigate,
+  setOpen,
+}: {
+  busy: boolean;
+  navigate: (page: PageName) => void;
+  setOpen: (open: boolean) => void;
+}) {
+  const [showContact, setShowContact] = useState(false);
+  const data = RESUME_DATA.jobMatchAliAiNotebookCard;
+
+  return (
+    <div
+      style={{
+        margin: "4px 0",
+        width: "100%",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
+      }}
+    >
+      <div
+        style={{
+          background: "#0d0f14",
+          border: "1px solid rgba(0,229,255,0.2)",
+          borderRadius: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "12px 14px 10px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: 9,
+                color: "#00e5ff",
+                letterSpacing: "0.12em",
+                marginBottom: 3,
+              }}
+            >
+              {busy ? "◆ 生成中…" : "◆ 岗位匹配度分析"}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "#e8eaf0",
+                fontWeight: 500,
+                lineHeight: 1.35,
+              }}
+            >
+              {data.jobTitle}
+            </div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#00e5ff", lineHeight: 1 }}>
+              {data.overallScore}
+            </div>
+            <div style={{ fontSize: 9, color: "#7a8090", marginTop: 1 }}>综合匹配</div>
+          </div>
+        </div>
+
+        {/* Dimensions */}
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#7a8090",
+              letterSpacing: "0.1em",
+              marginBottom: 9,
+            }}
+          >
+            逐项对照 JD 要求
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.dimensions.map((d, i) => {
+              const weak = Boolean(d.weakTag);
+              return (
+                <div key={i}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 4,
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        minWidth: 0,
+                        flex: 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 11, color: "#c8cacc", lineHeight: 1.35 }}>{d.label}</span>
+                      {d.weakTag ? (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            flexShrink: 0,
+                            background: "rgba(240,160,64,0.12)",
+                            border: "1px solid rgba(240,160,64,0.3)",
+                            color: "#f0a040",
+                            padding: "1px 5px",
+                            borderRadius: 3,
+                          }}
+                        >
+                          {d.weakTag}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: weak ? "#f0a040" : "#00e5ff",
+                        fontWeight: 500,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {d.percent}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 3,
+                      background: "rgba(255,255,255,0.06)",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${d.percent}%`,
+                        borderRadius: 2,
+                        background: weak
+                          ? "linear-gradient(90deg, #f0a040, #f0c040)"
+                          : "linear-gradient(90deg, #7b61ff, #00e5ff)",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 最强匹配点 */}
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#7a8090",
+              letterSpacing: "0.1em",
+              marginBottom: 7,
+            }}
+          >
+            {data.strengthHeading}
+          </div>
+          <div
+            style={{
+              background: "rgba(0,229,255,0.04)",
+              borderLeft: "2px solid rgba(0,229,255,0.4)",
+              padding: "7px 10px",
+              borderRadius: "0 4px 4px 0",
+              fontSize: 11,
+              color: "#a0c8d0",
+              lineHeight: 1.6,
+            }}
+          >
+            {data.strengthBody}
+          </div>
+        </div>
+
+        {/* 潜在缺口 */}
+        <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div
+            style={{
+              fontSize: 9,
+              color: "#7a8090",
+              letterSpacing: "0.1em",
+              marginBottom: 7,
+            }}
+          >
+            {data.gapHeading}
+          </div>
+          <div
+            style={{
+              background: "rgba(240,160,64,0.04)",
+              borderLeft: "2px solid rgba(240,160,64,0.35)",
+              padding: "7px 10px",
+              borderRadius: "0 4px 4px 0",
+              fontSize: 11,
+              color: "#c8a870",
+              lineHeight: 1.6,
+            }}
+          >
+            {data.gapBody}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div style={{ padding: "10px 14px", display: "flex", gap: 7 }}>
+          <button
+            type="button"
+            onClick={() => {
+              navigate("main");
+              setOpen(false);
+              if (typeof window !== "undefined") {
+                window.setTimeout(() => {
+                  document.getElementById("match")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 280);
+              }
+            }}
+            style={{
+              flex: 1,
+              background: "rgba(0,229,255,0.06)",
+              border: "1px solid rgba(0,229,255,0.18)",
+              borderRadius: 6,
+              padding: 8,
+              textAlign: "center",
+              cursor: "pointer",
+              fontFamily: "'Noto Sans SC',sans-serif",
+            }}
+          >
+            <div style={{ fontSize: 10, color: "#00e5ff" }}>查看项目佐证 →</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowContact((v) => !v)}
+            style={{
+              flex: 1,
+              background: "rgba(123,97,255,0.06)",
+              border: "1px solid rgba(123,97,255,0.2)",
+              borderRadius: 6,
+              padding: 8,
+              textAlign: "center",
+              cursor: "pointer",
+              fontFamily: "'Noto Sans SC',sans-serif",
+            }}
+          >
+            <div style={{ fontSize: 10, color: "#a898ff" }}>直接联系她 →</div>
+          </button>
+        </div>
+
+        {showContact ? (
+          <div
+            style={{
+              padding: "0 14px 12px",
+              borderTop: "1px solid rgba(255,255,255,0.05)",
+            }}
+          >
+            <div
+              style={{
+                marginTop: 10,
+                background: "rgba(123,97,255,0.08)",
+                border: "1px solid rgba(168,152,255,0.22)",
+                borderRadius: 7,
+                padding: "9px 11px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 9,
+                  color: "#a898ff",
+                  letterSpacing: "0.12em",
+                  marginBottom: 6,
+                }}
+              >
+                联系方式
+              </div>
+              {[
+                { icon: "💬", label: "微信", value: RESUME_DATA.basic.wechat },
+                { icon: "📧", label: "邮箱", value: RESUME_DATA.basic.email },
+                { icon: "📄", label: "简历", value: "点击下载", href: RESUME_DATA.basic.resumeLink },
+              ].map((item) => (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <span style={{ fontSize: 12 }}>{item.icon}</span>
+                  <span style={{ fontSize: 9, color: "#7a8090", width: 28 }}>{item.label}</span>
+                  {item.href ? (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: "#a898ff", textDecoration: "none" }}
+                    >
+                      {item.value} →
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 11, color: "#e8eaf0" }}>{item.value}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 /** Function Calling 进行中：橙色状态条（无设计稿标注文案） */
@@ -63,7 +733,7 @@ function FcSection({ text }: { text: string | null }) {
           display: "flex",
           alignItems: "center",
           gap: 7,
-          background: "rgba(240,160,64,0.06)",
+      background: "rgba(240,160,64,0.06)",
           border: "1px solid rgba(240,160,64,0.15)",
           padding: "7px 10px",
           borderRadius: 6,
@@ -75,8 +745,8 @@ function FcSection({ text }: { text: string | null }) {
             height: 7,
             borderRadius: "50%",
             background: "#f0a040",
-            flexShrink: 0,
-            animation: "fcBlink 0.6s ease-in-out infinite alternate",
+      flexShrink: 0,
+        animation: "fcBlink 0.6s ease-in-out infinite alternate",
           }}
         />
         <span
@@ -93,7 +763,7 @@ function FcSection({ text }: { text: string | null }) {
   );
 }
 
-/** 欢迎语 + 身份锚定 */
+/** 欢迎语（字号/圆角/内边距与对话气泡 token 一致；不含设计稿标注） */
 function WelcomeAnchor() {
   return (
     <div
@@ -105,19 +775,23 @@ function WelcomeAnchor() {
     >
       <div
         style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: 8,
-          padding: "10px 12px",
-          fontSize: 12,
-          color: "#c8cacc",
+          background: "rgba(255,255,255,0.085)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 12,
+          padding: "16px 22px",
+          fontSize: 14,
+          fontWeight: 400,
+          color: "#e8eaf0",
           lineHeight: 1.6,
+          wordBreak: "break-word",
+          overflowWrap: "break-word",
+          fontFamily: "'Noto Sans SC',sans-serif",
         }}
       >
         你好！我是傅倩娇的 AI 助手。
         <br />
         <span style={{ color: "#a898ff" }}>
-          可问核心项目（千牛电商客服全托管对话系统、飞棋RPA工具全链路AI能力升级）、技术能力，或她对 AI 笔记的产品看法。
+          你是想了解她的项目经历、技术能力，还是直接看她对 AI 笔记的产品看法？
         </span>
       </div>
     </div>
@@ -279,6 +953,31 @@ export default function AiBot({ navigate, currentPage }: Props) {
   const [keyDraft, setKeyDraft] = useState("");
   const siliconflowCtx = useSiliconflowUserKeyOptional();
   const keyAutoOpenedRef = useRef(false);
+  const [chatOnboardingDone, setChatOnboardingDone] = useState(false);
+  const footerFollowUps = useMemo<ChatSuggestionItem[]>(
+    () =>
+      QUICK_ACTIONS.map(({ label, q, variant }) => ({
+        title: label,
+        message: q,
+        className:
+          variant === "contact" ? "suggestion-chip-contact" : "suggestion-chip-tech",
+      })),
+    [],
+  );
+
+  const completeChatOnboarding = () => {
+    try {
+      window.localStorage.setItem(CHAT_ONBOARDING_STORAGE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setChatOnboardingDone(true);
+  };
+
+  useEffect(() => {
+    setChatOnboardingDone(readChatOnboardingDone());
+  }, []);
+
   const { appendMessage, visibleMessages } = useCopilotChat();
   const [chatMemory, setChatMemory] = useState<StoredChatMemory>(() => loadChatMemory());
   const memorySyncSig = useRef("");
@@ -415,7 +1114,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
   useCopilotAction({
     name: "showProjectHighlights",
     description:
-      "展示单个项目的核心亮点与指标卡片（含跳转 STAR 页按钮）。用户问「有哪些核心项目/项目经历」等总览时须各调一次 qianniu 与 feiqí；用户只问某一个项目时只调对应 id。",
+      "展示单个项目的核心亮点与指标卡片（含跳转 STAR 页按钮）。仅当用户只问某一个项目、或深挖某一项目细节时使用；核心项目总览请用 showCoreProjectsOverview。",
     parameters: [
       {
         name: "projectId",
@@ -429,83 +1128,13 @@ export default function AiBot({ navigate, currentPage }: Props) {
     render: ({ status: actionStatus, args }) => {
       const project = RESUME_DATA.projects.find((p) => p.id === args.projectId);
       if (!project) return null;
-      const metrics = Object.values(project.metrics);
-      const starPage: PageName = project.id === "qianniu" ? "project" : "project2";
       return (
-        <div style={{ margin: "4px 0" }}>
-          <div
-            style={{
-              background: "rgba(0,229,255,0.04)",
-              border: "1px solid rgba(0,229,255,0.15)",
-              borderRadius: 7,
-              padding: "9px 11px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 9,
-                color: "#00e5ff",
-                letterSpacing: "0.1em",
-                marginBottom: 6,
-              }}
-            >
-              {actionStatus === "executing" || actionStatus === "inProgress"
-                ? "◆ 加载中…"
-                : "◆ 项目亮点"}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#e8eaf0",
-                fontWeight: 500,
-                marginBottom: 7,
-                lineHeight: 1.35,
-              }}
-            >
-              {project.name}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-              {metrics.map((m, i) => (
-                <span
-                  key={i}
-                  style={{
-                    background: "rgba(123,97,255,0.12)",
-                    border: "1px solid rgba(123,97,255,0.25)",
-                    color: "#a898ff",
-                    fontSize: 10,
-                    padding: "2px 7px",
-                    borderRadius: 3,
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {m}
-                </span>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                navigate(starPage);
-                setOpen(false);
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                cursor: "pointer",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 4,
-                padding: "6px 9px",
-                fontFamily: "'Noto Sans SC',sans-serif",
-              }}
-            >
-              <span style={{ fontSize: 10, color: "#7a8090" }}>查看完整 STAR 拆解</span>
-              <span style={{ fontSize: 12, color: "#00e5ff" }}>→</span>
-            </button>
-          </div>
-        </div>
+        <ProjectHighlightCardUI
+          project={project}
+          actionStatus={actionStatus}
+          navigate={navigate}
+          setOpen={setOpen}
+        />
       );
     },
     handler: async ({ projectId }) => {
@@ -514,6 +1143,48 @@ export default function AiBot({ navigate, currentPage }: Props) {
       setFcText(null);
       const p = RESUME_DATA.projects.find((p) => p.id === projectId);
       return p ? `已加载${p.name}的项目数据` : "项目未找到";
+    },
+  });
+
+  useCopilotAction({
+    name: "showCoreProjectsOverview",
+    description:
+      "一次性并排展示「千牛电商客服全托管对话系统」与「飞棋RPA工具全链路AI能力升级」两张结构化项目卡片（指标+STAR 跳转按钮）。当用户问「有哪些核心项目经历」「核心项目有哪些」「项目经历」等总览问题时必须调用本工具（一次即可），禁止只用纯文字编号列表代替。",
+    parameters: [],
+    render: ({ status: actionStatus }) => {
+      const order = ["qianniu", "feiqí"] as const;
+      const projects = order
+        .map((id) => RESUME_DATA.projects.find((p) => p.id === id))
+        .filter((p): p is ResumeProject => Boolean(p));
+      return (
+        <div
+          style={{
+            margin: "4px 0",
+            width: "100%",
+            maxWidth: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            boxSizing: "border-box",
+          }}
+        >
+          {projects.map((p) => (
+            <ProjectHighlightCardUI
+              key={p.id}
+              project={p}
+              actionStatus={actionStatus}
+              navigate={navigate}
+              setOpen={setOpen}
+            />
+          ))}
+          </div>
+      );
+    },
+    handler: async () => {
+      setFcText("正在检索项目数据库...");
+      await new Promise((r) => setTimeout(r, 700));
+      setFcText(null);
+      return "已展示千牛与飞棋两个核心项目的结构化卡片；请点击各卡片底部「查看完整 STAR 拆解」进入对应详情页。正文请勿重复罗列卡片内指标。";
     },
   });
 
@@ -658,7 +1329,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
               {actionStatus === "executing" || actionStatus === "inProgress"
                 ? "◆ 加载中…"
                 : "◆ AI 笔记洞察"}
-            </div>
+          </div>
             <div
               style={{
                 fontWeight: 500,
@@ -690,8 +1361,8 @@ export default function AiBot({ navigate, currentPage }: Props) {
               >
                 缺口{" "}
               </span>
-              {op.gap}
-            </div>
+            {op.gap}
+          </div>
             <div
               style={{
                 fontSize: 10,
@@ -704,7 +1375,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
               }}
             >
               <span style={{ color: "#00e5ff", letterSpacing: "0.06em" }}>建议 </span>
-              {op.suggestion}
+            {op.suggestion}
             </div>
             <NotebookInternalLinkButtons
               links={links.map((l) => ({
@@ -731,6 +1402,46 @@ export default function AiBot({ navigate, currentPage }: Props) {
   });
 
   useCopilotAction({
+    name: "showSkillsStackCard",
+    description:
+      "展示「技术能力图谱」结构化卡片：三层技能（AI 产品能力 / 低代码自动化 / 产品工具链）、深浅标签区分主辅、实战交付数据（64 应用 / 26 平台 / 95% 满意度）、底部跳转千牛 RAG 项目案例。用户问技术栈、技能、会用哪些工具、能力图谱等时必须调用（无参数），禁止只用纯文字列表代替。",
+    parameters: [],
+    render: ({ status: actionStatus }) => (
+      <SkillsStackCardUI
+        busy={actionStatus === "executing" || actionStatus === "inProgress"}
+        navigate={navigate}
+        setOpen={setOpen}
+      />
+    ),
+    handler: async () => {
+      setFcText("正在生成技术栈卡片...");
+      await new Promise((r) => setTimeout(r, 550));
+      setFcText(null);
+      return "已展示结构化技术栈卡片；请勿在正文中逐条复述标签与数字，最多一句总括或引导点击底部「RAG 项目案例」。";
+    },
+  });
+
+  useCopilotAction({
+    name: "showJobMatchCard",
+    description:
+      "展示「与阿里 AI 笔记 · 产品经理」岗位的结构化匹配度卡片：综合分、逐项 JD 进度条（含待加强标签）、最强匹配点、潜在缺口、底部「查看项目佐证」「直接联系她」。用户问岗位匹配度、JD 匹配、面试匹配分析等时必须调用（无参数），禁止只用长文字代替。",
+    parameters: [],
+    render: ({ status: actionStatus }) => (
+      <JobMatchCardWithContact
+        busy={actionStatus === "executing" || actionStatus === "inProgress"}
+        navigate={navigate}
+        setOpen={setOpen}
+      />
+    ),
+    handler: async () => {
+      setFcText("正在生成岗位匹配度分析...");
+      await new Promise((r) => setTimeout(r, 650));
+      setFcText(null);
+      return "已展示结构化岗位匹配度卡片；请勿在正文中逐条复述分数与进度条内容，最多一句总括或引导使用卡片底部按钮。";
+    },
+  });
+
+  useCopilotAction({
     name: "getContactInfo",
     description: "获取傅倩娇的联系方式。当用户询问如何联系、微信、邮箱时调用。",
     parameters: [],
@@ -753,16 +1464,16 @@ export default function AiBot({ navigate, currentPage }: Props) {
             }}
           >
             {actionStatus === "executing" || actionStatus === "inProgress" ? "⟳ 获取中…" : "联系方式"}
-          </div>
-          {[
-            { icon: "💬", label: "微信", value: RESUME_DATA.basic.wechat },
-            { icon: "📧", label: "邮箱", value: RESUME_DATA.basic.email },
-            { icon: "📄", label: "简历", value: "点击下载", href: RESUME_DATA.basic.resumeLink },
-          ].map((item) => (
+        </div>
+        {[
+          { icon: "💬", label: "微信", value: RESUME_DATA.basic.wechat },
+          { icon: "📧", label: "邮箱", value: RESUME_DATA.basic.email },
+          { icon: "📄", label: "简历", value: "点击下载", href: RESUME_DATA.basic.resumeLink },
+        ].map((item) => (
             <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
               <span style={{ fontSize: 12 }}>{item.icon}</span>
               <span style={{ fontSize: 9, color: "#7a8090", width: 28 }}>{item.label}</span>
-              {item.href ? (
+            {item.href ? (
                 <a
                   href={item.href}
                   target="_blank"
@@ -773,9 +1484,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 </a>
               ) : (
                 <span style={{ fontSize: 11, color: "#e8eaf0" }}>{item.value}</span>
-              )}
-            </div>
-          ))}
+            )}
+          </div>
+        ))}
         </div>
       </div>
     ),
@@ -821,6 +1532,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
 
   /** 走 CopilotKit 官方 API；勿改 DOM：输入框是受控组件，伪造 input/submit 不会更新 React state，也不会触发发送 */
   const submitCopilotQuestion = (q: string) => {
+    completeChatOnboarding();
     void (async () => {
       try {
         await appendMessage(
@@ -842,20 +1554,25 @@ export default function AiBot({ navigate, currentPage }: Props) {
 1) 分流：用户开口后先用一句话对齐意图：项目/技术、AI 笔记观点、岗位匹配，还是联系方式；不要重复朗读整段欢迎语。
 2) 用户可用顶部快捷按钮发起问题；若已发起，直接执行对应能力，少废话。
 3) 调用 function 时，用户会在上方看到橙色「正在检索…」状态条；正文保持简洁。
-4) **核心项目总览**（如「她有哪些核心项目经历」「有哪些核心项目」「项目经历有哪些」）：正文最多 1～2 句总起；**必须依次**调用 showProjectHighlights(projectId='qianniu') 与 showProjectHighlights(projectId='feiqí') **各一次**，让用户通过卡片主入口了解并跳转：①千牛电商客服全托管对话系统（STAR 详解页 project）；②飞棋RPA工具全链路AI能力升级（STAR 详解页 project2）。**禁止**用长段落罗列两项目的指标而不出这两条卡片；指标与 STAR 以卡片为准，正文可一句提示「点卡片查看完整 STAR」。
-5) 结构化优先（单项目或深挖）：问某一项目细节、指标、STAR 时必须先 showProjectHighlights 出对应项目卡片，禁止只用长文字堆砌数据。
-6) AI 笔记总览：用户问「整体看法、有哪些洞察、AI笔记、NotebookLM」等未指定单点时，只调用 showAiNotebookOpinionsAll（无参数）。卡片内已按第一点、第二点、第三点展示全部内容。
-7) AI 笔记单点：仅当用户明确追问某一子话题时，调用 showAiNotebookOpinion 并选对 opinionId。
-8) 【硬性禁止】调用 showAiNotebookOpinionsAll 或 showAiNotebookOpinion 之后，正文中不得再写编号列表或自然段去复述卡片里已有的标题、缺口、建议；最多允许≤15字短承接（如「需要展开哪一点？」）或结束。
-9) 联系：调用 getContactInfo。
-10) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游。跳转后聊天窗会保持打开，用户可继续追问。
-11) 多轮上下文：你会收到「本地持久化对话记忆」含最近 3 条摘要与长期摘要；请连贯承接，除非用户明确换话题。
+4) **核心项目总览**（如「她有哪些核心项目经历」「有哪些核心项目」「项目经历有哪些」）：正文最多 1～2 句总起；**必须调用一次** showCoreProjectsOverview（无参数），会同时出现千牛、飞棋**两张**结构化卡片并可跳转 STAR 页。**禁止**仅用 Markdown 编号列表描述两项目而不调用本工具；**禁止**用两次 showProjectHighlights 代替（总览只用 showCoreProjectsOverview）。
+5) **单项目或深挖**：只问千牛或只问飞棋某一侧时，调用 showProjectHighlights 并传对应 projectId；禁止只用长文字堆砌数据。
+6) **岗位匹配度**：用户问「与阿里 AI 笔记岗位匹配度」「岗位匹配」「JD 匹配」「面试匹配」等时，**必须调用一次** showJobMatchCard（无参数），展示综合分、JD 维度进度条、最强匹配点、潜在缺口与双 CTA。**禁止**仅用 Markdown 列表复述各维度分数；正文最多一句总括。
+7) **技术栈与技能**：用户问「技术栈」「技能有哪些」「会用哪些工具」「能力图谱」等时，**必须调用一次** showSkillsStackCard（无参数）。**禁止**仅用 Markdown 标签列表代替卡片；正文最多一句总括。
+8) AI 笔记总览：用户问「整体看法、有哪些洞察、AI笔记、NotebookLM」等未指定单点时，只调用 showAiNotebookOpinionsAll（无参数）。卡片内已按第一点、第二点、第三点展示全部内容。
+9) AI 笔记单点：仅当用户明确追问某一子话题时，调用 showAiNotebookOpinion 并选对 opinionId。
+10) 【硬性禁止】调用 showAiNotebookOpinionsAll 或 showAiNotebookOpinion 之后，正文中不得再写编号列表或自然段去复述卡片里已有的标题、缺口、建议；最多允许≤15字短承接（如「需要展开哪一点？」）或结束。
+11) 联系：用户明确要联系方式且未在岗位匹配卡片内展开时，调用 getContactInfo；**不要**在卡片外再用自然段重复微信/邮箱/简历链接。
+12) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游。跳转后聊天窗会保持打开，用户可继续追问。
+13) 多轮上下文：你会收到「本地持久化对话记忆」含最近 3 条摘要与长期摘要；请连贯承接，除非用户明确换话题。
 
-风格：中文、专业简洁、产品经理视角。`;
+风格：中文、专业简洁、产品经理视角。
+
+【纯卡片回合】凡已调用并展示前端结构化卡片（含 getContactInfo、showCoreProjectsOverview、showJobMatchCard、showSkillsStackCard、showProjectHighlights、showAiNotebookOpinionsAll 等），该回合助手**不得**再输出任何 Markdown 正文（留空即可）；界面只保留卡片与底部操作栏，推荐问题由输入框上方的固定快捷条承担。仅当**没有**调用上述卡片、或必须追问用户时，才允许输出极短纯文本（≤20 字）。`;
 
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         title="AI 助手"
         style={{
@@ -885,9 +1602,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
             position: "absolute",
             inset: -4,
             borderRadius: "50%",
-            border: "2px solid rgba(0,229,255,0.3)",
-            animation: "orbPulse 2.5s ease-in-out infinite",
-            pointerEvents: "none",
+          border: "2px solid rgba(0,229,255,0.3)",
+          animation: "orbPulse 2.5s ease-in-out infinite",
+          pointerEvents: "none",
           }}
         />
       </button>
@@ -900,17 +1617,17 @@ export default function AiBot({ navigate, currentPage }: Props) {
           zIndex: 299,
           width: 360,
           maxHeight: 580,
-          background: "#0d0f14",
-          border: "1px solid rgba(0,229,255,0.2)",
-          borderRadius: 12,
-          boxShadow: "0 0 0 1px rgba(123,97,255,0.15), 0 20px 60px rgba(0,0,0,0.8)",
+        background: "#0d0f14",
+        border: "1px solid rgba(0,229,255,0.2)",
+        borderRadius: 12,
+        boxShadow: "0 0 0 1px rgba(123,97,255,0.15), 0 20px 60px rgba(0,0,0,0.8)",
           display: "flex",
           flexDirection: "column",
-          transform: open ? "scale(1) translateY(0)" : "scale(0.95) translateY(12px)",
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? "all" : "none",
-          transition: "transform 0.3s cubic-bezier(.16,1,.3,1), opacity 0.25s",
-          overflow: "hidden",
+        transform: open ? "scale(1) translateY(0)" : "scale(0.95) translateY(12px)",
+        opacity: open ? 1 : 0,
+        pointerEvents: open ? "all" : "none",
+        transition: "transform 0.3s cubic-bezier(.16,1,.3,1), opacity 0.25s",
+        overflow: "hidden",
           fontFamily: "system-ui, 'Noto Sans SC', sans-serif",
         }}
       >
@@ -949,11 +1666,11 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 AI 助手
               </div>
               <div style={{ fontSize: 10, color: statusColor, marginTop: 2 }}>{statusLine}</div>
+              </div>
             </div>
-          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {siliconflowCtx && !hideHeaderApiButton && (
-              <button
+          <button
                 type="button"
                 title={
                   serverMissing && !usingOwnKey
@@ -983,8 +1700,8 @@ export default function AiBot({ navigate, currentPage }: Props) {
             )}
             <button
               type="button"
-              onClick={() => setOpen(false)}
-              style={{
+            onClick={() => setOpen(false)}
+            style={{
                 background: "none",
                 border: "none",
                 padding: 0,
@@ -1093,51 +1810,63 @@ export default function AiBot({ navigate, currentPage }: Props) {
           </div>
         )}
 
-        <WelcomeAnchor />
+        {!chatOnboardingDone && (
+          <>
+            <WelcomeAnchor />
 
-        <div
-          style={{
-            padding: "10px 14px",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {QUICK_ACTIONS.map(({ label, q, variant }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => submitCopilotQuestion(q)}
-                style={{
-                  ...quickChipStyle(variant, false),
-                  fontSize: 10,
-                  padding: "4px 9px",
-                  borderRadius: 20,
-                  cursor: "pointer",
-                  transition: "border-color 0.15s, background 0.15s, color 0.15s",
-                  fontFamily: "'Noto Sans SC',sans-serif",
-                  whiteSpace: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  const s = quickChipStyle(variant, true);
-                  Object.assign(e.currentTarget.style, s as CSSProperties);
-                }}
-                onMouseLeave={(e) => {
-                  const s = quickChipStyle(variant, false);
-                  Object.assign(e.currentTarget.style, s as CSSProperties);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+            <div
+              style={{
+                padding: "10px 14px 12px",
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                {QUICK_ACTIONS.map(({ label, q, variant }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => submitCopilotQuestion(q)}
+                    style={{
+                      ...quickChipStyle(variant, false),
+                      fontSize: 11,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      cursor: "pointer",
+                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
+                      fontFamily: "'Noto Sans SC',sans-serif",
+                      whiteSpace: "nowrap",
+                      fontWeight: 500,
+                      lineHeight: 1.35,
+                    }}
+                    onMouseEnter={(e) => {
+                      const s = quickChipStyle(variant, true);
+                      Object.assign(e.currentTarget.style, s as CSSProperties);
+                    }}
+                    onMouseLeave={(e) => {
+                      const s = quickChipStyle(variant, false);
+                      Object.assign(e.currentTarget.style, s as CSSProperties);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <FcSection text={fcText} />
 
         <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <CopilotChat
             instructions={botInstructions}
+            AssistantMessage={CopilotAssistantMessage}
+            /* 首次引导：仅顶部快捷；完成后输入框上方常显同一组推荐问题 */
+            suggestions={chatOnboardingDone ? footerFollowUps : []}
+            onSubmitMessage={() => {
+              completeChatOnboarding();
+            }}
             onInProgress={(inProgress) => {
               setStatus(inProgress ? "thinking" : "ready");
             }}
@@ -1178,7 +1907,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
             >
               使用自己的硅基流动 Key（可选）
             </button>
-          </div>
+        </div>
         )}
       </div>
     </>

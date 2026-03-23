@@ -175,6 +175,88 @@ export const RESUME_DATA = {
       { name: "AI产品经验年限（1-3年）", score: 100 },
     ],
   },
+
+  /** AI 对话里 showJobMatchCard 的结构化展示（与岗位匹配度设计稿一致） */
+  jobMatchAliAiNotebookCard: {
+    jobTitle: "阿里 AI 笔记 · 产品经理",
+    overallScore: 90,
+    dimensions: [
+      { label: "AI 产品经验年限（1-3年）", percent: 100 },
+      { label: "LLM / RAG / Agent 能力理解", percent: 95 },
+      { label: "0→1 产品设计经验", percent: 90 },
+      { label: "知识库 / 个人知识管理场景", percent: 85 },
+      { label: "C 端用户产品思维", percent: 80, weakTag: "待加强" as const },
+    ],
+    strengthHeading: "最强匹配点",
+    strengthBody:
+      "设计过 RAG 三层知识库 + fallback 梯度路由，与 AI 笔记的召回架构高度同构；同时是 NotebookLM 重度用户，有第一视角的产品判断。",
+    gapHeading: "潜在缺口",
+    gapBody:
+      "C 端产品经验以工具类为主，消费级习惯养成场景经验相对间接——但 NotebookLM 的使用经历可以作为补充支撑。",
+  },
+
+  /** AI 对话里 showSkillsStackCard（与 skills_card 设计稿一致） */
+  skillsChatCard: {
+    deliveryNote: "不只是「会用」— 实战交付数据",
+    delivery: [
+      { value: "64", label: "交付应用数" },
+      { value: "26", label: "覆盖平台数" },
+      { value: "95%", label: "客户满意度" },
+    ],
+    cta: {
+      label: "看 RAG 知识库的具体项目案例",
+      /** 千牛对话系统页（RAG / 知识库三层召回） */
+      targetPage: "project" as const,
+    },
+    sections: [
+      {
+        id: "ai" as const,
+        barColor: "#00e5ff",
+        title: "AI 产品能力",
+        titleColor: "#00e5ff",
+        rightBadge: "主攻方向",
+        chips: [
+          { label: "Prompt 工程", emphasis: true },
+          { label: "RAG 知识库", emphasis: true },
+          { label: "Agent 工作流", emphasis: true },
+          { label: "LLMOps", emphasis: false },
+          { label: "意图识别", emphasis: false },
+          { label: "对话系统设计", emphasis: false },
+          { label: "AB 测试", emphasis: false },
+        ],
+      },
+      {
+        id: "lowcode" as const,
+        barColor: "#a898ff",
+        title: "低代码 / 自动化",
+        titleColor: "#a898ff",
+        rightBadge: "有证书",
+        chips: [
+          { label: "飞棋 RPA", emphasis: true },
+          { label: "影刀 RPA", emphasis: true },
+          { label: "Dify", emphasis: false },
+          { label: "扣子 / Coze", emphasis: false },
+          { label: "飞书多维表格", emphasis: false },
+        ],
+      },
+      {
+        id: "product" as const,
+        barColor: "#4aa8a0",
+        title: "产品工具链",
+        titleColor: "#4aa8a0",
+        rightBadge: null as string | null,
+        chips: [
+          { label: "Axure", emphasis: true },
+          { label: "Figma", emphasis: true },
+          { label: "JIRA", emphasis: true },
+          { label: "Postman", emphasis: true },
+          { label: "墨刀", emphasis: true },
+          { label: "禅道", emphasis: false },
+          { label: "竞品分析", emphasis: false },
+        ],
+      },
+    ],
+  },
 };
 
 export type ResumeData = typeof RESUME_DATA;

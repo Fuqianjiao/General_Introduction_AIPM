@@ -3,6 +3,7 @@ import {
   CopilotRuntime,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
+import { BuiltInAgent } from "@copilotkitnext/agent";
 import { SiliconFlowCompatibleOpenAIAdapter } from "@/lib/siliconFlowOpenAIAdapter";
 import OpenAI from "openai";
 import { NextRequest } from "next/server";
@@ -54,13 +55,36 @@ function getHandleForApiKey(apiKey: string) {
   });
   patchOpenAIClientForSiliconFlow(openai);
 
-  const copilotRuntime = new CopilotRuntime();
+  const serviceAdapter = new SiliconFlowCompatibleOpenAIAdapter({
+    openai,
+    model,
+    /**
+     * 旧版 OpenAIAdapter.process() 路径上的并行关闭（若运行时走该路径仍生效）。
+     */
+    disableParallelToolCalls: true,
+  });
+
+  /**
+   * CopilotKit 默认用 BuiltInAgent + AI SDK streamText(getLanguageModel)。
+   * 该路径**不会**读取 OpenAIAdapter.disableParallelToolCalls，需在 providerOptions 显式关闭并行 tool，
+   * 否则多工具同轮仍可能触发「Cannot send RUN_FINISHED while tool calls are still active」。
+   */
+  const copilotRuntime = new CopilotRuntime({
+    agents: {
+      default: new BuiltInAgent({
+        model: serviceAdapter.getLanguageModel(),
+        providerOptions: {
+          openai: {
+            parallelToolCalls: false,
+          },
+        },
+      }),
+    },
+  });
+
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime: copilotRuntime,
-    serviceAdapter: new SiliconFlowCompatibleOpenAIAdapter({
-      openai,
-      model,
-    }),
+    serviceAdapter,
     endpoint: "/api/copilotkit",
   });
 

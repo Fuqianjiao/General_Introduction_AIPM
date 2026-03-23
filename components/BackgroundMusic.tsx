@@ -1,16 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * 全站背景音乐（Prosecco - Patrik Jean）
  *
- * 优先使用 **MP3**（`/audio/prosecco.mp3`）：体积小、解码轻，不易与页面动画/主线程抢资源导致「卡顿感」。
- * 若无 mp3 会回退 **FLAC**；FLAC 无损解码更重，在 dev 模式或多动画时更容易断续。
- * 本地转换示例：`ffmpeg -i prosecco.flac -q:a 2 public/audio/prosecco.mp3`
+ * - **默认**：同源 `/audio/prosecco.mp3`（文件放在 `public/audio/` 并提交到 Git，部署后与站点同域，利于缓存、少卡顿）。
+ * - **可选**：`NEXT_PUBLIC_AUDIO_SRC` 设为绝对 URL（如 GitHub raw / jsDelivr 指向仓库内 `prosecco.mp3`），用于固定 CDN 地址。
+ * - **仅 MP3 单源**：`<audio>` 只设一个 `src`，与 `NEXT_PUBLIC_AUDIO_SRC` 一致，避免多格式/错误地址带来的额外请求与解码卡顿。
  *
  * 进入页面会尝试自动播放；若被浏览器拦截，点喇叭或面板内「开始播放」。
  */
+const DEFAULT_AUDIO_PATH = "/audio/prosecco.mp3";
+
+/** 缓冲足够再播，减少刚开播时的断续（同源 MP3 + preload 后通常很快 resolve） */
+function waitUntilPlayable(el: HTMLAudioElement): Promise<void> {
+  if (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener("canplay", done);
+      el.removeEventListener("canplaythrough", done);
+      resolve();
+    };
+    el.addEventListener("canplay", done);
+    el.addEventListener("canplaythrough", done);
+    window.setTimeout(done, 15_000);
+  });
+}
+
 export default function BackgroundMusic() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [muted, setMuted] = useState(false);
@@ -18,11 +40,25 @@ export default function BackgroundMusic() {
   const [playing, setPlaying] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [open, setOpen] = useState(false);
+  /** 音频文件 404 或解码失败（仓库需自带 public/audio/prosecco.mp3） */
+  const [loadError, setLoadError] = useState(false);
+
+  const audioSrc = useMemo(() => {
+    const fromEnv = process.env.NEXT_PUBLIC_AUDIO_SRC?.trim();
+    if (fromEnv) return fromEnv;
+    return DEFAULT_AUDIO_PATH;
+  }, []);
+
+  const isExternalSrc = useMemo(
+    () => audioSrc.startsWith("http://") || audioSrc.startsWith("https://"),
+    [audioSrc],
+  );
 
   const tryPlay = useCallback(async () => {
     const el = audioRef.current;
     if (!el) return;
     try {
+      await waitUntilPlayable(el);
       el.volume = volume;
       el.muted = muted;
       await el.play();
@@ -40,6 +76,7 @@ export default function BackgroundMusic() {
         const el = audioRef.current;
         if (!el) return;
         try {
+          await waitUntilPlayable(el);
           el.volume = 0.35;
           el.muted = false;
           await el.play();
@@ -88,15 +125,20 @@ export default function BackgroundMusic() {
     <>
       <audio
         ref={audioRef}
+        key={audioSrc}
+        src={audioSrc}
         loop
         preload="auto"
         playsInline
+        crossOrigin={isExternalSrc ? "anonymous" : undefined}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-      >
-        <source src="/audio/prosecco.mp3" type="audio/mpeg" />
-        <source src="/audio/prosecco.flac" type="audio/flac" />
-      </audio>
+        onError={() => {
+          setLoadError(true);
+          setBlocked(true);
+          setPlaying(false);
+        }}
+      />
 
       <div
         id="bg-music-root"
@@ -124,15 +166,21 @@ export default function BackgroundMusic() {
             height: 42,
             borderRadius: "50%",
             border: "1px solid rgba(0,229,255,0.35)",
-            background: blocked ? "rgba(240,160,64,0.12)" : "rgba(0,229,255,0.08)",
-            boxShadow: blocked
-              ? "0 0 16px rgba(240,160,64,0.25)"
-              : "0 0 14px rgba(0,229,255,0.2)",
+            background: loadError
+              ? "rgba(248,113,113,0.1)"
+              : blocked
+                ? "rgba(240,160,64,0.12)"
+                : "rgba(0,229,255,0.08)",
+            boxShadow: loadError
+              ? "0 0 14px rgba(248,113,113,0.25)"
+              : blocked
+                ? "0 0 16px rgba(240,160,64,0.25)"
+                : "0 0 14px rgba(0,229,255,0.2)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: blocked ? "#f0a040" : muted ? "#7a8090" : "#7df4ff",
+            color: loadError ? "#f87171" : blocked ? "#f0a040" : muted ? "#7a8090" : "#7df4ff",
             transition: "all 0.2s",
           }}
         >
@@ -165,20 +213,22 @@ export default function BackgroundMusic() {
               背景音乐 · Prosecco
             </div>
 
-            {blocked && (
+            {(blocked || loadError) && (
               <p
                 style={{
                   fontSize: 11,
-                  color: "rgba(240,160,64,0.95)",
+                  color: loadError ? "rgba(248,113,113,0.95)" : "rgba(240,160,64,0.95)",
                   lineHeight: 1.5,
                   marginBottom: 10,
                 }}
               >
-                浏览器拦截了自动播放，请先点下面「开始播放」。
+                {loadError
+                  ? `无法加载音频：请确认 ${audioSrc === DEFAULT_AUDIO_PATH ? "public/audio/prosecco.mp3 已提交到仓库" : "NEXT_PUBLIC_AUDIO_SRC 地址可访问（需支持 CORS）"}。`
+                  : "浏览器拦截了自动播放，请先点下面「开始播放」。"}
               </p>
             )}
 
-            {blocked && (
+            {blocked && !loadError && (
               <button
                 type="button"
                 onClick={() => void tryPlay()}

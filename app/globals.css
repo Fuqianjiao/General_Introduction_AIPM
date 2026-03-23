@@ -36,15 +36,15 @@ body {
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
  */
 .copilotKitChat.copilot-custom {
-  /* 统一气泡（微信式：左右气泡同一字号、行高、内边距、最大宽度） */
-  --ck-bubble-font-size: 15px;
-  --ck-bubble-line-height: 1.55;
+  /* 统一气泡：用户 / 助手 / 欢迎区同款 — 14px 正文、1.6 行高、加大内边距避免贴边 */
+  --ck-bubble-font-size: 14px;
+  --ck-bubble-line-height: 1.6;
   --ck-bubble-font-weight: 400;
-  --ck-bubble-max-width: min(92%, 20rem);
+  --ck-bubble-max-width: min(92%, 22rem);
   --ck-bubble-bg: rgba(255, 255, 255, 0.085);
   --ck-bubble-border: 1px solid rgba(255, 255, 255, 0.12);
-  --ck-bubble-radius: 22px;
-  --ck-bubble-padding: 12px 16px;
+  --ck-bubble-radius: 12px;
+  --ck-bubble-padding: 16px 22px;
   --ck-bubble-text: #f4f4f5;
   --ck-bubble-text-muted: #f4f4f5;
   --copilot-kit-primary-color: #e8eaf0;
@@ -142,6 +142,8 @@ body {
   margin-right: 0 !important;
   white-space: pre-wrap !important;
   word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  overflow-x: hidden !important;
 }
 
 /*
@@ -181,10 +183,13 @@ body {
   color: var(--ck-bubble-text) !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  overflow-x: hidden !important;
 }
 
 /*
- * 覆盖 @copilotkit markdown.css 的 p/h 的 1rem、1.75、多级标题放大 —— 微信对话感：正文统一 15px
+ * 覆盖 @copilotkit markdown.css 的 p/h 的 1rem、1.75、多级标题放大 —— 与 --ck-bubble-font-size 一致
  */
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown .copilotKitMarkdownElement,
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p,
@@ -217,10 +222,28 @@ body {
 
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p {
   margin: 0 0 0.5em !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p:last-child {
   margin-bottom: 0 !important;
+}
+
+/* 有序/无序列表：左侧留白，避免「1.」贴边；与气泡 padding 协调 */
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ol.copilotKitMarkdownElement,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ul.copilotKitMarkdownElement {
+  padding-left: 1.35em !important;
+  margin-left: 0 !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown li.copilotKitMarkdownElement {
+  padding-left: 0.35em !important;
+  margin-left: 0 !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 .copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown pre.copilotKitMarkdownElement,
@@ -241,6 +264,19 @@ body {
   margin-top: 8px !important;
   margin-left: 2px !important;
   padding: 0 !important;
+}
+
+/* 仅有结构化卡片、无助手正文时：不要气泡背景，操作栏紧跟卡片 */
+.copilot-custom .copilotKitAssistantMessage.copilot-assistant-tools-only {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage.copilot-assistant-tools-only .copilotKitMessageControls {
+  margin-top: 6px !important;
 }
 
 .copilot-custom .copilotKitMessageControlButton {
@@ -272,40 +308,78 @@ body {
   box-sizing: border-box !important;
 }
 
+/* 推荐问题：横向胶囊条（设计稿图2），与顶部快捷条视觉一致 */
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions {
-  flex-direction: column !important;
-  align-items: flex-start !important;
-  gap: 8px !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 6px !important;
 }
 
+/* 与首次进入顶栏快捷胶囊同规格：小号、紧内边距、全圆角药丸 */
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading) {
-  width: fit-content !important;
-  max-width: var(--ck-bubble-max-width) !important;
+  width: auto !important;
+  max-width: 100% !important;
   box-sizing: border-box !important;
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
-  justify-content: flex-start !important;
-  text-align: left !important;
-  background: var(--ck-bubble-bg) !important;
-  border: var(--ck-bubble-border) !important;
-  border-radius: var(--ck-bubble-radius) !important;
-  padding: var(--ck-bubble-padding) !important;
-  color: var(--ck-bubble-text) !important;
-  font-size: var(--ck-bubble-font-size) !important;
+  justify-content: center !important;
+  text-align: center !important;
   font-family: 'Noto Sans SC', sans-serif !important;
-  font-weight: var(--ck-bubble-font-weight) !important;
-  line-height: var(--ck-bubble-line-height) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
   box-shadow: none !important;
   cursor: pointer !important;
-  transition: border-color 0.15s ease, background 0.15s ease !important;
-  white-space: normal !important;
-  word-break: break-word !important;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  overflow-x: hidden !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
 }
 
-.copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading):hover {
-  background: rgba(255, 255, 255, 0.09) !important;
-  border-color: rgba(0, 229, 255, 0.22) !important;
-  transform: none !important;
+/* 青色系快捷（前三个） */
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-tech:not(.loading) {
+  background: rgba(0, 229, 255, 0.07) !important;
+  border: 1px solid rgba(0, 229, 255, 0.18) !important;
+  color: #7fe8f5 !important;
+}
+
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-tech:not(.loading):hover {
+  background: rgba(0, 229, 255, 0.1) !important;
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  color: #9ef5ff !important;
+}
+
+/* 联系她：紫色强调 */
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-contact:not(.loading) {
+  background: rgba(123, 97, 255, 0.1) !important;
+  border: 1px solid rgba(123, 97, 255, 0.25) !important;
+  color: #a898ff !important;
+}
+
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-contact:not(.loading):hover {
+  background: rgba(123, 97, 255, 0.12) !important;
+  border-color: rgba(168, 152, 255, 0.4) !important;
+  color: #d4c8ff !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion.loading {
@@ -340,16 +414,16 @@ body {
 
 .copilot-custom .copilotKitInput > textarea {
   flex: 1 !important;
-  min-height: 34px !important;
+  min-height: 32px !important;
   max-height: 120px !important;
-  padding: 7px 11px !important;
+  padding: 8px 12px !important;
   margin: 0 !important;
   background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(0, 229, 255, 0.1) !important;
   color: #e8eaf0 !important;
   border-radius: 7px !important;
-  font-size: var(--ck-bubble-font-size, 15px) !important;
-  line-height: var(--ck-bubble-line-height, 1.55) !important;
+  font-size: var(--ck-bubble-font-size, 14px) !important;
+  line-height: var(--ck-bubble-line-height, 1.6) !important;
   font-weight: var(--ck-bubble-font-weight, 400) !important;
   font-family: 'Noto Sans SC', sans-serif !important;
 }

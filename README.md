@@ -37,7 +37,7 @@ npm run dev
 
 ### 背景音乐卡顿？
 
-全站 BGM 在 `components/BackgroundMusic.tsx`。**优先播放** `public/audio/prosecco.mp3`（体积小、解码省 CPU）；若无则回退 `prosecco.flac`。若只听 FLAC 时感觉「一顿一顿」，多半是解码 + 页面动画/dev 热更新抢主线程，建议生成 MP3：
+全站 BGM 使用 **原生 `<audio>`**（仅 **一条 MP3** `src`，与 `NEXT_PUBLIC_AUDIO_SRC` 或默认 `/audio/prosecco.mp3` 一致），`layout` 里 **`rel=preload`** 提前拉流，`canplay` 后再 `play()`，减少开播断续。仍卡顿时请用 **生产构建** `npm run build && npm start` 试听（dev 模式主线程更忙）。
 
 ```bash
 ffmpeg -i public/audio/prosecco.flac -q:a 2 public/audio/prosecco.mp3
