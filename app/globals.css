@@ -1,0 +1,268 @@
+/* app/globals.css */
+:root {
+  --bg: #0a0c10;
+  --surface: #111318;
+  --surface2: #181c24;
+  --accent: #00e5ff;
+  --accent2: #7b61ff;
+  --text: #e8eaf0;
+  --text-dim: #7a8090;
+  --border: rgba(0, 229, 255, 0.12);
+  --glow: 0 0 30px rgba(0, 229, 255, 0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+}
+
+/* ── Override CopilotKit default styles to match our cyberpunk theme ── */
+.copilotKitButton {
+  display: none !important; /* We use our own orb button */
+}
+
+.copilotKitPopup {
+  display: none !important; /* We use our own panel */
+}
+
+/*
+ * CopilotKit 默认使用 :root 浅色变量（消息区、聊天根、Powered by 底栏均为白/浅灰）。
+ * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
+ */
+.copilotKitChat.copilot-custom {
+  --copilot-kit-primary-color: #e8eaf0;
+  --copilot-kit-contrast-color: #0a0c10;
+  --copilot-kit-background-color: #0d0f14;
+  --copilot-kit-input-background-color: rgba(0, 0, 0, 0.22);
+  --copilot-kit-secondary-color: #14161c;
+  --copilot-kit-secondary-contrast-color: #e8eaf0;
+  --copilot-kit-separator-color: rgba(0, 229, 255, 0.18);
+  --copilot-kit-muted-color: #6b7280;
+  --copilot-kit-error-background: rgba(127, 29, 29, 0.45);
+  --copilot-kit-error-border: #dc2626;
+  --copilot-kit-error-text: #fca5a5;
+  background: #0d0f14 !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessages {
+  background-color: #0d0f14 !important;
+  color: #c8cacc !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessagesFooter {
+  background: transparent !important;
+}
+
+/* AiBot: keyframes + CopilotChat overrides (must live in CSS, not inline <style>, to avoid hydration mismatch) */
+@keyframes fcBlink {
+  from { opacity: 0.3; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes orbPulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.18); opacity: 0.7; }
+}
+
+.copilot-custom {
+  background: transparent !important;
+  border: none !important;
+  height: 100% !important;
+  font-family: 'Noto Sans SC', sans-serif !important;
+}
+
+.copilot-custom .copilotKitMessagesContainer {
+  padding: 10px 14px !important;
+  gap: 10px !important;
+}
+
+.copilot-custom .copilotKitMessage {
+  font-size: 12px !important;
+  line-height: 1.65 !important;
+}
+
+.copilot-custom .copilotKitUserMessage {
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.22), rgba(0, 229, 255, 0.12)) !important;
+  border: 1px solid rgba(0, 229, 255, 0.18) !important;
+  color: #e8eaf0 !important;
+  border-radius: 8px !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  color: #c8cacc !important;
+  border-radius: 8px !important;
+}
+
+/* 设计稿：底栏输入区横向排列，左输入框 + 右 30×30 渐变发送钮 */
+.copilot-custom .copilotKitInputContainer {
+  padding-bottom: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.copilot-custom .copilotKitInput {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-end !important;
+  gap: 7px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  padding: 10px 12px !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  border-top: 1px solid rgba(0, 229, 255, 0.1) !important;
+}
+
+.copilot-custom .copilotKitInput > textarea {
+  flex: 1 !important;
+  min-height: 34px !important;
+  max-height: 120px !important;
+  padding: 7px 11px !important;
+  margin: 0 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(0, 229, 255, 0.1) !important;
+  color: #e8eaf0 !important;
+  border-radius: 7px !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  font-family: 'Noto Sans SC', sans-serif !important;
+}
+
+.copilot-custom .copilotKitInput > textarea::placeholder {
+  color: rgba(255, 255, 255, 0.2) !important;
+  opacity: 1 !important;
+}
+
+.copilot-custom .copilotKitInput > textarea:focus {
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  outline: none !important;
+}
+
+.copilot-custom .copilotKitInputControls {
+  display: flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  gap: 4px !important;
+}
+
+/* 去掉中间撑开占位，让发送键贴右对齐设计稿 */
+.copilot-custom .copilotKitInputControls > div:empty {
+  display: none !important;
+}
+
+.copilot-custom .copilotKitInputControlButton {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  border-radius: 7px !important;
+  background: linear-gradient(135deg, #7b61ff, #00e5ff) !important;
+  color: #0a0c10 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.copilot-custom .copilotKitInputControlButton:not([disabled]) {
+  color: #0a0c10 !important;
+}
+
+.copilot-custom .copilotKitInputControlButton:not([disabled]):hover {
+  filter: brightness(1.08) !important;
+  transform: none !important;
+}
+
+.copilot-custom .copilotKitInputControlButton[disabled] {
+  opacity: 0.45 !important;
+  cursor: default !important;
+}
+
+.copilot-custom .copilotKitInputControlButton svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/*
+ * Powered by：类名 poweredByContainer 与 copilotKitInputContainer 在同一 div 上（非父子），
+ * 之前选择器未命中。直接隐藏 PoweredByTag 外包的末级 div。
+ */
+.copilotKitChat.copilot-custom .copilotKitInputContainer.poweredByContainer > div:last-child {
+  display: none !important;
+}
+
+.copilotKitChat.copilot-custom p.poweredBy {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
+/* 主页 Hero · 数字团队小卡片网格（窄屏单列，较宽双列末卡通栏） */
+.digital-team-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 480px) {
+  .digital-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .digital-team-card--span {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 229, 255, 0.4); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+
+/* FAB「联系我」信封图标霓虹呼吸 */
+@keyframes fabCyberPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.55)) drop-shadow(0 0 10px rgba(123, 97, 255, 0.25));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.9)) drop-shadow(0 0 14px rgba(168, 152, 255, 0.45));
+  }
+}
+
+.fab-cyber-mail {
+  animation: fabCyberPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes barIn {
+  from { width: 0; }
+}
+
+.bar-fill-100 { width: 100%; animation: barIn 1.2s ease both 0.1s; }
+.bar-fill-95  { width: 95%;  animation: barIn 1.2s ease both 0.2s; }
+.bar-fill-90  { width: 90%;  animation: barIn 1.2s ease both 0.3s; }
+.bar-fill-85  { width: 85%;  animation: barIn 1.2s ease both 0.4s; }
+.bar-fill-82  { width: 82%;  animation: barIn 1.2s ease both 0.5s; }
+.bar-fill-80  { width: 80%;  animation: barIn 1.2s ease both 0.6s; }
