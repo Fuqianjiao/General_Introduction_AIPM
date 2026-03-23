@@ -36,13 +36,16 @@ body {
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
  */
 .copilotKitChat.copilot-custom {
-  /* 统一气泡：用户 / 助手 / 底部追问建议 */
-  --ck-bubble-bg: rgba(255, 255, 255, 0.06);
-  --ck-bubble-border: 1px solid rgba(255, 255, 255, 0.1);
-  --ck-bubble-radius: 14px;
-  --ck-bubble-padding: 10px 14px;
-  --ck-bubble-text: #e8eaf0;
-  --ck-bubble-text-muted: #c8cacc;
+  /* 统一气泡（对齐图1）：用户 / 助手正文 / 底部追问，多轮对话同一套 */
+  --ck-bubble-font-size: 15px;
+  --ck-bubble-line-height: 1.55;
+  --ck-bubble-font-weight: 400;
+  --ck-bubble-bg: rgba(255, 255, 255, 0.085);
+  --ck-bubble-border: 1px solid rgba(255, 255, 255, 0.12);
+  --ck-bubble-radius: 22px;
+  --ck-bubble-padding: 12px 18px;
+  --ck-bubble-text: #f4f4f5;
+  --ck-bubble-text-muted: #f4f4f5;
   --copilot-kit-primary-color: #e8eaf0;
   --copilot-kit-contrast-color: #0a0c10;
   --copilot-kit-background-color: #0d0f14;
@@ -65,7 +68,8 @@ body {
 
 .copilotKitChat.copilot-custom .copilotKitMessages {
   background-color: #0d0f14 !important;
-  color: #c8cacc !important;
+  color: var(--ck-bubble-text) !important;
+  font-size: var(--ck-bubble-font-size) !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-x: hidden !important;
@@ -108,38 +112,81 @@ body {
 }
 
 .copilot-custom .copilotKitMessage {
-  font-size: 12px !important;
-  line-height: 1.65 !important;
+  font-size: var(--ck-bubble-font-size) !important;
+  line-height: var(--ck-bubble-line-height) !important;
+  font-weight: var(--ck-bubble-font-weight) !important;
 }
 
-/* 用户 / 助手：同一套气泡皮肤（仅对齐方向不同） */
-.copilot-custom .copilotKitUserMessage,
-.copilot-custom .copilotKitAssistantMessage {
+/* 用户消息：整块即气泡，宽度随文案（与图1一致），过长则换行限宽 */
+.copilot-custom .copilotKitUserMessage {
   background: var(--ck-bubble-bg) !important;
   border: var(--ck-bubble-border) !important;
   border-radius: var(--ck-bubble-radius) !important;
   padding: var(--ck-bubble-padding) !important;
   box-shadow: none !important;
-  max-width: 100% !important;
-}
-
-.copilot-custom .copilotKitUserMessage {
+  width: fit-content !important;
+  max-width: min(92%, 20rem) !important;
   color: var(--ck-bubble-text) !important;
   margin-left: auto !important;
   margin-right: 0 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
 }
 
+/*
+ * 助手消息：外层不画气泡，仅正文 .copilotKitMarkdown 为圆角框；
+ * 再生/复制/赞踩 排在气泡外下方，视觉上「悬浮在气泡下」。
+ */
 .copilot-custom .copilotKitAssistantMessage {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
   color: var(--ck-bubble-text-muted) !important;
   margin-right: auto !important;
   margin-left: 0 !important;
   position: relative !important;
   display: flex !important;
   flex-direction: column !important;
-  align-items: stretch !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
 }
 
-/* 操作栏：放在气泡下方左对齐，与追问条视觉一致 */
+.copilot-custom .copilotKitAssistantMessage > .copilotKitMarkdown {
+  background: var(--ck-bubble-bg) !important;
+  border: var(--ck-bubble-border) !important;
+  border-radius: var(--ck-bubble-radius) !important;
+  padding: var(--ck-bubble-padding) !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  font-size: var(--ck-bubble-font-size) !important;
+  line-height: var(--ck-bubble-line-height) !important;
+  font-weight: var(--ck-bubble-font-weight) !important;
+  color: var(--ck-bubble-text) !important;
+}
+
+/* Markdown 内部元素继承同一字号行高，避免列表/段落变小 */
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown .copilotKitMarkdownElement,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown li,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ul,
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown ol {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p {
+  margin: 0 0 0.5em !important;
+}
+
+.copilot-custom .copilotKitAssistantMessage .copilotKitMarkdown p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 操作栏：在气泡盒子之外，略下移 */
 .copilot-custom .copilotKitAssistantMessage .copilotKitMessageControls {
   position: static !important;
   opacity: 1 !important;
@@ -147,8 +194,9 @@ body {
   flex-direction: row !important;
   align-items: center !important;
   gap: 10px !important;
-  padding: 6px 2px 0 !important;
-  margin: 0 !important;
+  margin-top: 8px !important;
+  margin-left: 2px !important;
+  padding: 0 !important;
 }
 
 .copilot-custom .copilotKitMessageControlButton {
@@ -182,13 +230,13 @@ body {
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions {
   flex-direction: column !important;
-  align-items: stretch !important;
+  align-items: flex-start !important;
   gap: 8px !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading) {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: fit-content !important;
+  max-width: min(100%, 20rem) !important;
   box-sizing: border-box !important;
   display: flex !important;
   align-items: center !important;
@@ -199,12 +247,15 @@ body {
   border-radius: var(--ck-bubble-radius) !important;
   padding: var(--ck-bubble-padding) !important;
   color: var(--ck-bubble-text) !important;
-  font-size: 12px !important;
+  font-size: var(--ck-bubble-font-size) !important;
   font-family: 'Noto Sans SC', sans-serif !important;
-  line-height: 1.55 !important;
+  font-weight: var(--ck-bubble-font-weight) !important;
+  line-height: var(--ck-bubble-line-height) !important;
   box-shadow: none !important;
   cursor: pointer !important;
   transition: border-color 0.15s ease, background 0.15s ease !important;
+  white-space: normal !important;
+  word-break: break-word !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading):hover {
@@ -253,8 +304,9 @@ body {
   border: 1px solid rgba(0, 229, 255, 0.1) !important;
   color: #e8eaf0 !important;
   border-radius: 7px !important;
-  font-size: 11px !important;
-  line-height: 1.45 !important;
+  font-size: var(--ck-bubble-font-size, 15px) !important;
+  line-height: var(--ck-bubble-line-height, 1.55) !important;
+  font-weight: var(--ck-bubble-font-weight, 400) !important;
   font-family: 'Noto Sans SC', sans-serif !important;
 }
 

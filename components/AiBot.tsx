@@ -983,7 +983,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 lineHeight: 1.55,
               }}
             >
-              不填则使用站点内置默认或服务器环境变量；填写后仅保存在本机浏览器，并随请求加密传输（请仅在 HTTPS 环境使用）。
+              不填则使用服务器上的 SILICONFLOW_API_KEY（本地为 .env.local，线上为 Vercel 环境变量），Key 不会下发到浏览器。填写后仅保存在本机浏览器并随请求发送（请仅在 HTTPS 使用）。
             </p>
             <input
               type="password"

@@ -1,8 +1,10 @@
 /**
- * 硅基流动：内置默认 Key（服务端 resolveApiKey 兜底；亦由 CopilotProviders 写入请求头，进页即绑定）。
- * 服务端优先级：请求头 x-siliconflow-api-key > SILICONFLOW_API_KEY > 本常量。
- * 客户端请求头优先级：localStorage 覆盖 > NEXT_PUBLIC_SILICONFLOW_API_KEY > 本常量。
- * 公开仓库建议删除默认常量，改用环境变量。
+ * 硅基流动 Key 解析（服务端 app/api/copilotkit）：
+ * 请求头 x-siliconflow-api-key（仅当用户在浏览器「API」里自填并保存时由前端带上）
+ * → 环境变量 SILICONFLOW_API_KEY（.env.local / Vercel，推荐，小白用户零配置）
+ * → 本常量兜底（可留空；公开仓库建议留空并只配环境变量）。
+ *
+ * 前端默认不带头，故访客不会收到打包进页面的 Key；Vercel 只需配置 SILICONFLOW_API_KEY 即可。
  */
 export const SILICONFLOW_DEFAULT_API_KEY =
   "sk-xgnefafwdqiumczgdfujadsymwadibhzsnojtignfgpqigkp";

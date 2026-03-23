@@ -10,15 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
-import {
-  SILICONFLOW_API_KEY_HEADER,
-  SILICONFLOW_DEFAULT_API_KEY,
-  SILICONFLOW_USER_KEY_STORAGE,
-} from "@/lib/siliconflow-defaults";
+import { SILICONFLOW_API_KEY_HEADER, SILICONFLOW_USER_KEY_STORAGE } from "@/lib/siliconflow-defaults";
 
 type Ctx = {
   /**
-   * 用户在「API」里保存的 Key；null 表示未覆盖，请求头仍会自动带站点内置默认 Key。
+   * 用户在「API」里保存的 Key；null 表示使用服务端环境变量 SILICONFLOW_API_KEY（.env.local / Vercel），不在浏览器暴露。
    */
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
@@ -39,11 +35,11 @@ export function useSiliconflowUserKeyOptional(): Ctx | null {
 }
 
 /**
- * 进页即绑定：Copilot 所有请求默认携带 x-siliconflow-api-key（内置 Key 或与 localStorage 覆盖值）。
- * 未登录用户也会带上内置 Key（注意用量与公开仓库风险）。
+ * 默认不往浏览器塞 Key：请求 /api/copilotkit 时不带头，服务端用 SILICONFLOW_API_KEY（本地 .env.local、Vercel 环境变量）。
+ * 仅在用户在「API」面板保存 Key 时带头（localStorage），方便自带 Key 的高级用户。
  */
 export function CopilotProviders({ children }: { children: ReactNode }) {
-  /** 仅表示用户是否在本地覆盖 Key；null = 用内置默认 */
+  /** 浏览器覆盖；null = 交给服务端环境变量 */
   const [overrideKey, setOverrideKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,13 +63,12 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
   }, []);
 
   const headers = useMemo(() => {
+    const fromPanel = overrideKey?.trim();
+    if (fromPanel) return { [SILICONFLOW_API_KEY_HEADER]: fromPanel };
+    /** 可选：构建时注入，会打进前端包，仅自用/调试 */
     const pub = process.env.NEXT_PUBLIC_SILICONFLOW_API_KEY?.trim();
-    const effective =
-      overrideKey?.trim() ||
-      pub ||
-      SILICONFLOW_DEFAULT_API_KEY.trim();
-    if (!effective) return {};
-    return { [SILICONFLOW_API_KEY_HEADER]: effective };
+    if (pub) return { [SILICONFLOW_API_KEY_HEADER]: pub };
+    return {};
   }, [overrideKey]);
 
   const ctx = useMemo(

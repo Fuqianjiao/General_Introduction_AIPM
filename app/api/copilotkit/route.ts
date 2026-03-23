@@ -24,7 +24,7 @@ const DEFAULT_MODEL = "Qwen/Qwen3-14B";
 const model = process.env.SILICONFLOW_MODEL?.trim() || DEFAULT_MODEL;
 
 /**
- * 优先级：用户请求头（浏览器自填）> 环境变量 > 代码内默认 Key
+ * 优先级：请求头（用户在站内「API」保存的 Key）> SILICONFLOW_API_KEY 环境变量 > 代码内默认
  */
 function resolveApiKey(req: NextRequest): string {
   const fromHeader = req.headers.get(SILICONFLOW_API_KEY_HEADER)?.trim();

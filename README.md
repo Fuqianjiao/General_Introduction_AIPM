@@ -9,9 +9,11 @@
 npm install
 ```
 
-### 2. 配置 API Key（可选）
+### 2. 配置 API Key（推荐配环境变量，小白零操作）
 
-**优先级**：① 用户在 AI 对话框标题栏点 **「API」** 自填的 Key（仅存浏览器）→ ② `.env.local` 里的 `SILICONFLOW_API_KEY` → ③ 代码内默认（`lib/siliconflow-defaults.ts`，公开仓库建议删除默认 Key，只保留环境变量）。
+**默认**：访客不在浏览器填 Key 时，请求由服务端读取 **`SILICONFLOW_API_KEY`**（本地 `.env.local`、Vercel 环境变量），Key **不会**打进前端包。
+
+**优先级**（服务端）：① 用户在站内 **「API」** 自填并保存的 Key（浏览器 `localStorage`，随请求头带上）→ ② `SILICONFLOW_API_KEY` → ③ `lib/siliconflow-defaults.ts` 内常量兜底（可留空，公开仓库建议只配环境变量）。
 
 本地可编辑 `.env.local`（复制 `.env.example`）：
 ```
@@ -37,7 +39,7 @@ npm run dev
 
 1. 把代码推送到 GitHub
 2. 登录 [vercel.com](https://vercel.com)，Import 你的 GitHub 仓库
-3. 在 Vercel 项目 Settings → Environment Variables 添加：
+3. 在 Vercel 项目 **Settings → Environment Variables** 添加（与本地 `.env.local` 同名即可，部署后访客无需在网页填 Key）：
    - `SILICONFLOW_API_KEY` = 你的API Key
    - `SILICONFLOW_MODEL` = Qwen/Qwen3-14B
    - `SILICONFLOW_BASE_URL` = https://api.siliconflow.cn/v1
