@@ -30,9 +30,26 @@ body {
 .copilotKitPopup {
   display: none !important; /* We use our own panel */
 }
-/* 隐藏消息下方的操作栏（复制、重新生成、赞踩） */
-.copilotKitMessageActions {
+/* 彻底隐藏 Assistant 消息下方的所有操作控件 */
+.copilot-custom .copilotKitMessageControls,
+.copilot-custom .copilotKitMessageActions,
+.copilot-custom .copilotKitMessageControlButton,
+.copilot-custom [class*="MessageControls"],
+.copilot-custom [class*="MessageActions"] {
   display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+/* 修正：如果是因为卡片没有容器导致图标悬浮在卡片上，强制移除消息块背景 */
+.copilot-custom .copilotKitAssistantMessage {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 /*
  * CopilotKit 默认使用 :root 浅色变量（消息区、聊天根、Powered by 底栏均为白/浅灰）。
