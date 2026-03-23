@@ -30,7 +30,10 @@ body {
 .copilotKitPopup {
   display: none !important; /* We use our own panel */
 }
-
+/* 隐藏消息下方的操作栏（复制、重新生成、赞踩） */
+.copilotKitMessageActions {
+  display: none !important;
+}
 /*
  * CopilotKit 默认使用 :root 浅色变量（消息区、聊天根、Powered by 底栏均为白/浅灰）。
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
