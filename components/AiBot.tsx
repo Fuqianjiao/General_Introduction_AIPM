@@ -4,11 +4,20 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   useCopilotReadable,
   useCopilotAction,
+  useCopilotChat,
 } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
+import { TextMessage, MessageRole } from "@copilotkit/runtime-client-gql";
 import { RESUME_DATA } from "@/lib/resumeData";
 import type { PageName } from "@/app/page";
 import { useSiliconflowUserKeyOptional } from "@/components/CopilotProviders";
+import {
+  loadChatMemory,
+  mergeMemoryFromMessages,
+  messageToSnippet,
+  saveChatMemory,
+  type StoredChatMemory,
+} from "@/lib/copilotLocalMemory";
 
 interface Props {
   navigate: (page: PageName) => void;
@@ -38,14 +47,7 @@ function quickChipStyle(variant: "tech" | "contact", hover: boolean): CSSPropert
   };
 }
 
-const sectionMicroLabel: CSSProperties = {
-  fontSize: 9,
-  color: "rgba(255,255,255,0.28)",
-  letterSpacing: "0.1em",
-  marginBottom: 7,
-};
-
-/** ③ Function Calling — 橙色条 + 文案（设计稿） */
+/** Function Calling 进行中：橙色状态条（无设计稿标注文案） */
 function FcSection({ text }: { text: string | null }) {
   if (!text) return null;
   return (
@@ -56,7 +58,6 @@ function FcSection({ text }: { text: string | null }) {
         flexShrink: 0,
       }}
     >
-      <div style={sectionMicroLabel}>③ Function Calling 过程动画</div>
       <div
         style={{
           display: "flex",
@@ -92,7 +93,7 @@ function FcSection({ text }: { text: string | null }) {
   );
 }
 
-/** ① 欢迎语 + 身份锚定 — 设计稿（不含右侧说明文档里的「痛点」脚注） */
+/** 欢迎语 + 身份锚定 */
 function WelcomeAnchor() {
   return (
     <div
@@ -111,23 +112,8 @@ function WelcomeAnchor() {
           fontSize: 12,
           color: "#c8cacc",
           lineHeight: 1.6,
-          position: "relative",
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: -8,
-            left: 12,
-            fontSize: 9,
-            color: "#7b61ff",
-            background: "#0d0f14",
-            padding: "0 4px",
-            letterSpacing: "0.1em",
-          }}
-        >
-          ① 欢迎语
-        </div>
         你好！我是傅倩娇的 AI 助手。
         <br />
         <span style={{ color: "#a898ff" }}>
@@ -203,6 +189,87 @@ function pageNavLabel(page: string | undefined): string {
   return "目标页面";
 }
 
+const NOTEBOOK_POINT_LABELS = ["一", "二", "三"] as const;
+
+type NotebookInternalLink = { label: string; page: PageName; hash?: string };
+
+function collectUniqueNotebookInternalLinks(): NotebookInternalLink[] {
+  const seen = new Set<string>();
+  const out: NotebookInternalLink[] = [];
+  for (const op of RESUME_DATA.aiNotebookOpinions) {
+    const raw =
+      "relatedLinks" in op && Array.isArray(op.relatedLinks) ? op.relatedLinks : [];
+    for (const l of raw) {
+      if (l.kind !== "internal") continue;
+      const key = `${l.page}:${l.hash ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ label: l.label, page: l.page as PageName, hash: l.hash });
+    }
+  }
+  return out;
+}
+
+function NotebookInternalLinkButtons({
+  links,
+  navigate,
+  setOpen,
+}: {
+  links: NotebookInternalLink[];
+  navigate: (p: PageName) => void;
+  setOpen: (v: boolean) => void;
+}) {
+  if (!links.length) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div
+        style={{
+          fontSize: 9,
+          color: "rgba(255,255,255,0.35)",
+          letterSpacing: "0.08em",
+          marginBottom: 5,
+        }}
+      >
+        站内跳转
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {links.map((link, i) => (
+          <button
+            key={`${link.page}-${link.hash ?? i}`}
+            type="button"
+            onClick={() => {
+              navigate(link.page);
+              const h = link.hash?.replace(/^#/, "");
+              if (h) {
+                window.setTimeout(() => {
+                  document.getElementById(h)?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }, 150);
+              }
+              setOpen(false);
+            }}
+            style={{
+              fontSize: 10,
+              color: "#c4b5fd",
+              textAlign: "left",
+              cursor: "pointer",
+              padding: "5px 8px",
+              borderRadius: 4,
+              border: "1px solid rgba(168,152,255,0.25)",
+              background: "rgba(123,97,255,0.08)",
+              fontFamily: "'Noto Sans SC',sans-serif",
+            }}
+          >
+            {link.label} →
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main AiBot Component ─────────────────────────────────────────
 export default function AiBot({ navigate, currentPage }: Props) {
   const [open, setOpen] = useState(false);
@@ -211,6 +278,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
   const [keyPanelOpen, setKeyPanelOpen] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const siliconflowCtx = useSiliconflowUserKeyOptional();
+  const { appendMessage, visibleMessages } = useCopilotChat();
+  const [chatMemory, setChatMemory] = useState<StoredChatMemory>(() => loadChatMemory());
+  const memorySyncSig = useRef("");
 
   useCopilotReadable({
     description: "傅倩娇的完整简历信息、工作经历、项目经历和技能",
@@ -230,6 +300,39 @@ export default function AiBot({ navigate, currentPage }: Props) {
     },
   });
 
+  useCopilotReadable({
+    description:
+      "本地持久化对话记忆（用户刷新页面后仍保留）：recent 为最近最多 3 条 user/assistant 文本摘要；longTerm 为随时间滚动的长期摘要。请结合当前问题、简历事实与该记忆作答，避免自相矛盾。",
+    value: chatMemory,
+  });
+
+  useEffect(() => {
+    if (!visibleMessages?.length) return;
+    const last = visibleMessages[visibleMessages.length - 1] as {
+      id?: string;
+      role?: string;
+      content?: string;
+    };
+    const sig = `${visibleMessages.length}:${last?.id ?? ""}:${String(last?.content ?? "").slice(0, 160)}`;
+    if (sig === memorySyncSig.current) return;
+    memorySyncSig.current = sig;
+    const snippets = visibleMessages
+      .map((m) => messageToSnippet(m as { role?: string; content?: string }))
+      .filter((x): x is { role: string; text: string } => Boolean(x));
+    if (!snippets.length) return;
+    const base = loadChatMemory();
+    const merged: StoredChatMemory =
+      last.role === "assistant"
+        ? mergeMemoryFromMessages(base, snippets)
+        : {
+            ...base,
+            recent: snippets.slice(-3),
+            updatedAt: new Date().toISOString(),
+          };
+    saveChatMemory(merged);
+    setChatMemory(merged);
+  }, [visibleMessages]);
+
   useCopilotAction({
     name: "navigateToPage",
     description: "跳转到网站的指定页面。当用户想看某个项目详情、或想回到主页时调用。",
@@ -247,7 +350,6 @@ export default function AiBot({ navigate, currentPage }: Props) {
       const loading = rs === "executing" || rs === "inProgress";
       return (
         <div style={{ margin: "4px 0" }}>
-          <div style={sectionMicroLabel}>⑤ AI 直接控制页面跳转</div>
           <div
             style={{
               background: "rgba(255,255,255,0.04)",
@@ -295,8 +397,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
       await new Promise((r) => setTimeout(r, 550));
       navigate(page as PageName);
       setFcText(null);
-      setOpen(false);
-      return `已为你打开${pageNavLabel(page)}，聊天窗已收起，方便你阅读页面。`;
+      return `已为你打开${pageNavLabel(page)}。聊天窗仍保持打开，你可继续追问；若需专心阅读页面可自行点 ✕ 收起。`;
     },
   });
 
@@ -319,7 +420,6 @@ export default function AiBot({ navigate, currentPage }: Props) {
       const starPage: PageName = project.id === "qianniu" ? "project" : "project2";
       return (
         <div style={{ margin: "4px 0" }}>
-          <div style={sectionMicroLabel}>④ 结构化结果卡片（而非纯文字）</div>
           <div
             style={{
               background: "rgba(0,229,255,0.04)",
@@ -405,8 +505,111 @@ export default function AiBot({ navigate, currentPage }: Props) {
   });
 
   useCopilotAction({
+    name: "showAiNotebookOpinionsAll",
+    description:
+      "在一张「AI 笔记洞察」卡片内并列展示第一点、第二点、第三点（资源边界 / 知识管理 / 交互模式）。当用户泛泛地问「AI笔记看法」「有哪些洞察」「NotebookLM」「整体观点」且未指定只谈某一条时，必须优先调用本工具（无参数），不要只调用 showAiNotebookOpinion 单条。",
+    parameters: [],
+    render: ({ status: actionStatus }) => {
+      const busy = actionStatus === "executing" || actionStatus === "inProgress";
+      const allLinks = collectUniqueNotebookInternalLinks();
+      const ops = RESUME_DATA.aiNotebookOpinions;
+      return (
+        <div style={{ margin: "4px 0" }}>
+          <div
+            style={{
+              background: "rgba(0,229,255,0.04)",
+              border: "1px solid rgba(0,229,255,0.15)",
+              borderRadius: 7,
+              padding: "9px 11px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9,
+                color: "#00e5ff",
+                letterSpacing: "0.1em",
+                marginBottom: 8,
+              }}
+            >
+              {busy ? "◆ 加载中…" : "◆ AI 笔记洞察"}
+            </div>
+            {ops.map((op, idx) => (
+              <div
+                key={op.id}
+                style={{
+                  marginBottom: idx === ops.length - 1 ? 6 : 12,
+                  paddingBottom: idx === ops.length - 1 ? 0 : 10,
+                  borderBottom:
+                    idx === ops.length - 1 ? "none" : "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 11,
+                    color: "#e8eaf0",
+                    marginBottom: 4,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  第{NOTEBOOK_POINT_LABELS[idx]}点 · {op.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#a8adb8",
+                    lineHeight: 1.45,
+                    marginBottom: 5,
+                  }}
+                >
+                  {op.tagline}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    background: "rgba(255,107,107,0.07)",
+                    borderLeft: "2px solid rgba(255,107,107,0.45)",
+                    padding: "5px 7px",
+                    marginBottom: 4,
+                    color: "#b8bcc4",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span style={{ color: "#ff9090", letterSpacing: "0.06em" }}>缺口 </span>
+                  {op.gap}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    background: "rgba(0,229,255,0.06)",
+                    borderLeft: "2px solid rgba(0,229,255,0.35)",
+                    padding: "5px 7px",
+                    color: "#b8bcc4",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <span style={{ color: "#00e5ff", letterSpacing: "0.06em" }}>建议 </span>
+                  {op.suggestion}
+                </div>
+              </div>
+            ))}
+            <NotebookInternalLinkButtons links={allLinks} navigate={navigate} setOpen={setOpen} />
+          </div>
+        </div>
+      );
+    },
+    handler: async () => {
+      setFcText("正在汇总 AI 笔记三点洞察...");
+      await new Promise((r) => setTimeout(r, 600));
+      setFcText(null);
+      return "单卡已含第一点、第二点、第三点。后续回复禁止复述卡片正文；允许≤15字承接（如「想展开哪一点？」）或结束。";
+    },
+  });
+
+  useCopilotAction({
     name: "showAiNotebookOpinion",
-    description: "展示傅倩娇对AI笔记产品的具体洞察和迭代建议。当用户问AI笔记、NotebookLM相关问题时调用。",
+    description:
+      "仅展示一条洞察。仅当用户明确只要其中某一角度（如只谈连接器/MCP、只谈知识图谱/双向链接、只谈主动推送/个性化）时调用，并选对 opinionId。泛泛总览不要用本工具，改用 showAiNotebookOpinionsAll。",
     parameters: [
       {
         name: "opinionId",
@@ -419,9 +622,10 @@ export default function AiBot({ navigate, currentPage }: Props) {
     render: ({ status: actionStatus, args }) => {
       const op = RESUME_DATA.aiNotebookOpinions.find((o) => o.id === args.opinionId);
       if (!op) return null;
+      const linksRaw = "relatedLinks" in op && Array.isArray(op.relatedLinks) ? op.relatedLinks : [];
+      const links = linksRaw.filter((l) => l.kind === "internal");
       return (
         <div style={{ margin: "4px 0" }}>
-          <div style={sectionMicroLabel}>④ 结构化结果卡片（而非纯文字）</div>
           <div
             style={{
               background: "rgba(0,229,255,0.04)",
@@ -481,6 +685,7 @@ export default function AiBot({ navigate, currentPage }: Props) {
                 background: "rgba(0,229,255,0.06)",
                 borderLeft: "2px solid rgba(0,229,255,0.35)",
                 padding: "5px 7px",
+                marginBottom: 8,
                 color: "#b8bcc4",
                 lineHeight: 1.5,
               }}
@@ -488,6 +693,15 @@ export default function AiBot({ navigate, currentPage }: Props) {
               <span style={{ color: "#00e5ff", letterSpacing: "0.06em" }}>建议 </span>
               {op.suggestion}
             </div>
+            <NotebookInternalLinkButtons
+              links={links.map((l) => ({
+                label: l.label,
+                page: l.page as PageName,
+                hash: l.hash,
+              }))}
+              navigate={navigate}
+              setOpen={setOpen}
+            />
           </div>
         </div>
       );
@@ -497,7 +711,9 @@ export default function AiBot({ navigate, currentPage }: Props) {
       await new Promise((r) => setTimeout(r, 700));
       setFcText(null);
       const op = RESUME_DATA.aiNotebookOpinions.find((o) => o.id === opinionId);
-      return op ? `已展示「${op.title}」的详细分析` : "未找到对应洞察";
+      return op
+        ? `已展示单条「${op.title}」。禁止在正文中重复卡片里的缺口与建议；最多一句短承接。`
+        : "未找到对应洞察";
     },
   });
 
@@ -507,7 +723,6 @@ export default function AiBot({ navigate, currentPage }: Props) {
     parameters: [],
     render: ({ status: actionStatus }) => (
       <div style={{ margin: "4px 0" }}>
-        <div style={sectionMicroLabel}>④ 结构化结果卡片（而非纯文字）</div>
         <div
           style={{
             background: "rgba(123,97,255,0.08)",
@@ -568,26 +783,36 @@ export default function AiBot({ navigate, currentPage }: Props) {
 
   const statusColor = status === "ready" ? "#00e5ff" : status === "thinking" ? "#f0a040" : "#ff6b6b";
 
+  /** 走 CopilotKit 官方 API；勿改 DOM：输入框是受控组件，伪造 input/submit 不会更新 React state，也不会触发发送 */
   const submitCopilotQuestion = (q: string) => {
-    const input = document.querySelector(".copilot-custom .copilotKitInput textarea") as HTMLTextAreaElement | null;
-    if (!input) return;
-    const setVal = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
-    setVal?.call(input, q);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    const form = input.closest("form");
-    form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    void (async () => {
+      try {
+        await appendMessage(
+          new TextMessage({
+            role: MessageRole.User,
+            content: q,
+          }),
+        );
+      } catch (e) {
+        console.error("快捷问题发送失败:", e);
+        setStatus("error");
+      }
+    })();
   };
 
   const botInstructions = `你是傅倩娇的专属 AI 助手，面向面试官。
 
 【引导逻辑 — 必须遵守】
-1) 分流：界面已有 ① 欢迎语给出方向。用户开口后先用一句话对齐意图：项目/技术、AI 笔记观点、岗位匹配，还是联系方式；不要重复朗读整段欢迎语。
-2) 零输入：提醒用户可使用 ② 快捷问题；若用户已通过快捷条发起问题，直接执行对应能力，少废话。
-3) 可感知：调用 function 时，用户会在顶部看到 ③ 橙色「正在检索…」状态；你回复保持简洁，不要用大段「我正在思考」凑字。
-4) 结构化优先：问项目、指标、STAR 时必须先 showProjectHighlights 出卡片（数字 badge + STAR 按钮），禁止只用长文字堆砌数据。
-5) AI 笔记 / NotebookLM：调用 showAiNotebookOpinion，并选一个最贴切的 opinionId。
-6) 联系：调用 getContactInfo。
-7) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游（例如「我来带你看…」），成功后前端会自动收起聊天窗。
+1) 分流：用户开口后先用一句话对齐意图：项目/技术、AI 笔记观点、岗位匹配，还是联系方式；不要重复朗读整段欢迎语。
+2) 用户可用顶部快捷按钮发起问题；若已发起，直接执行对应能力，少废话。
+3) 调用 function 时，用户会在上方看到橙色「正在检索…」状态条；正文保持简洁。
+4) 结构化优先：问项目、指标、STAR 时必须先 showProjectHighlights 出卡片（指标 badge + STAR 按钮），禁止只用长文字堆砌数据。
+5) AI 笔记总览：用户问「整体看法、有哪些洞察、AI笔记、NotebookLM」等未指定单点时，只调用 showAiNotebookOpinionsAll（无参数）。卡片内已按第一点、第二点、第三点展示全部内容。
+6) AI 笔记单点：仅当用户明确追问某一子话题时，调用 showAiNotebookOpinion 并选对 opinionId。
+7) 【硬性禁止】调用 showAiNotebookOpinionsAll 或 showAiNotebookOpinion 之后，正文中不得再写编号列表或自然段去复述卡片里已有的标题、缺口、建议；最多允许≤15字短承接（如「需要展开哪一点？」）或结束。
+8) 联系：调用 getContactInfo。
+9) 页面导航：用户同意深入或要看 STAR 页时调用 navigateToPage；话术像导游。跳转后聊天窗会保持打开，用户可继续追问。
+10) 多轮上下文：你会收到「本地持久化对话记忆」含最近 3 条摘要与长期摘要；请连贯承接，除非用户明确换话题。
 
 风格：中文、专业简洁、产品经理视角。`;
 
@@ -740,7 +965,16 @@ export default function AiBot({ navigate, currentPage }: Props) {
               flexShrink: 0,
             }}
           >
-            <div style={{ ...sectionMicroLabel, marginBottom: 6 }}>硅基流动 API Key（可选）</div>
+            <div
+              style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.45)",
+                marginBottom: 6,
+                letterSpacing: "0.04em",
+              }}
+            >
+              硅基流动 API Key（可选）
+            </div>
             <p
               style={{
                 fontSize: 10,
@@ -813,7 +1047,6 @@ export default function AiBot({ navigate, currentPage }: Props) {
 
         <WelcomeAnchor />
 
-        {/* ② 快捷问题 */}
         <div
           style={{
             padding: "10px 14px",
@@ -821,7 +1054,6 @@ export default function AiBot({ navigate, currentPage }: Props) {
             flexShrink: 0,
           }}
         >
-          <div style={sectionMicroLabel}>② 快捷问题 — 一键触发，零输入成本</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {QUICK_ACTIONS.map(({ label, q, variant }) => (
               <button

@@ -1,20 +1,27 @@
 // app/api/copilotkit/route.ts
 import {
   CopilotRuntime,
-  OpenAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
+import { SiliconFlowCompatibleOpenAIAdapter } from "@/lib/siliconFlowOpenAIAdapter";
 import OpenAI from "openai";
 import { NextRequest } from "next/server";
 import {
   SILICONFLOW_API_KEY_HEADER,
   SILICONFLOW_DEFAULT_API_KEY,
 } from "@/lib/siliconflow-defaults";
+import { patchOpenAIClientForSiliconFlow } from "@/lib/patchOpenAIForSiliconFlow";
 
 const baseURL =
   process.env.SILICONFLOW_BASE_URL?.trim() || "https://api.siliconflow.cn/v1";
-const model =
-  process.env.SILICONFLOW_MODEL?.trim() || "Qwen/Qwen2.5-72B-Instruct";
+
+/**
+ * 硅基流动会调整上架模型；旧 ID（如 Qwen2.5-72B）若已下线，上游会返回 HTTP 404，
+ * 前端表现为 AI_APICallError: Not Found。默认改用文档中仍列出的 Qwen3 系列。
+ * @see https://docs.siliconflow.cn/cn/api-reference/chat-completions/chat-completions
+ */
+const DEFAULT_MODEL = "Qwen/Qwen3-14B";
+const model = process.env.SILICONFLOW_MODEL?.trim() || DEFAULT_MODEL;
 
 /**
  * 优先级：用户请求头（浏览器自填）> 环境变量 > 代码内默认 Key
@@ -27,9 +34,36 @@ function resolveApiKey(req: NextRequest): string {
   return SILICONFLOW_DEFAULT_API_KEY.trim();
 }
 
+/** 按 API Key 缓存 Hono handler，避免每请求重建 Runtime（更稳、更快） */
+const handleByApiKey = new Map<string, (req: NextRequest) => Promise<Response>>();
+
+function getHandleForApiKey(apiKey: string) {
+  let run = handleByApiKey.get(apiKey);
+  if (run) return run;
+
+  const openai = new OpenAI({
+    apiKey,
+    baseURL,
+  });
+  patchOpenAIClientForSiliconFlow(openai);
+
+  const copilotRuntime = new CopilotRuntime();
+  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+    runtime: copilotRuntime,
+    serviceAdapter: new SiliconFlowCompatibleOpenAIAdapter({
+      openai,
+      model,
+    }),
+    endpoint: "/api/copilotkit",
+  });
+
+  run = (req: NextRequest) => Promise.resolve(handleRequest(req));
+  handleByApiKey.set(apiKey, run);
+  return run;
+}
+
 /**
- * 浏览器发 GraphQL 时会带自定义头，触发 OPTIONS 预检，须导出 OPTIONS。
- * 按请求解析 Key，因此每个请求创建独立 Runtime + Adapter（体量可接受）。
+ * 浏览器发请求会带自定义头，触发 OPTIONS 预检，须导出 OPTIONS。
  */
 async function guardAndHandle(req: NextRequest) {
   const apiKey = resolveApiKey(req);
@@ -43,23 +77,20 @@ async function guardAndHandle(req: NextRequest) {
     );
   }
 
-  const openai = new OpenAI({
-    apiKey,
-    baseURL,
-  });
-
-  const copilotRuntime = new CopilotRuntime();
-  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-    runtime: copilotRuntime,
-    serviceAdapter: new OpenAIAdapter({
-      openai,
-      model,
-    }),
-    endpoint: "/api/copilotkit",
-  });
-
+  const handleRequest = getHandleForApiKey(apiKey);
   return handleRequest(req);
 }
 
 export const POST = (req: NextRequest) => guardAndHandle(req);
 export const OPTIONS = (req: NextRequest) => guardAndHandle(req);
+
+/** 健康检查：确认路由存在；不参与 CopilotKit 协议 */
+export async function GET() {
+  return Response.json({
+    ok: true,
+    service: "copilotkit",
+    baseURL,
+    model,
+    tip: "若仍 Not Found：检查 SILICONFLOW_MODEL；另需保证兼容网关支持流式 /v1/chat/completions（CopilotKit 已把 beta.stream 代理到标准路径以适配硅基流动）。",
+  });
+}

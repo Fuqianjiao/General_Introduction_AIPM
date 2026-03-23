@@ -1,5 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
+import BackgroundMusic from "@/components/BackgroundMusic";
 import { CopilotProviders } from "@/components/CopilotProviders";
 import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
@@ -23,6 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <BackgroundMusic />
         <CopilotProviders>{children}</CopilotProviders>
       </body>
     </html>

@@ -12,11 +12,14 @@ import {
 import { CopilotKit } from "@copilotkit/react-core";
 import {
   SILICONFLOW_API_KEY_HEADER,
+  SILICONFLOW_DEFAULT_API_KEY,
   SILICONFLOW_USER_KEY_STORAGE,
 } from "@/lib/siliconflow-defaults";
 
 type Ctx = {
-  /** 用户自填 Key；null 表示用服务端默认 / .env */
+  /**
+   * 用户在「API」里保存的 Key；null 表示未覆盖，请求头仍会自动带站点内置默认 Key。
+   */
   userApiKey: string | null;
   setUserApiKey: (key: string | null) => void;
 };
@@ -31,20 +34,24 @@ export function useSiliconflowUserKey(): Ctx {
   return v;
 }
 
-/** 可选：AiBot 在 Provider 外时降级 */
 export function useSiliconflowUserKeyOptional(): Ctx | null {
   return useContext(SiliconflowKeyContext);
 }
 
+/**
+ * 进页即绑定：Copilot 所有请求默认携带 x-siliconflow-api-key（内置 Key 或与 localStorage 覆盖值）。
+ * 未登录用户也会带上内置 Key（注意用量与公开仓库风险）。
+ */
 export function CopilotProviders({ children }: { children: ReactNode }) {
-  const [userApiKey, setUserKeyState] = useState<string | null>(null);
+  /** 仅表示用户是否在本地覆盖 Key；null = 用内置默认 */
+  const [overrideKey, setOverrideKey] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SILICONFLOW_USER_KEY_STORAGE)?.trim();
-      setUserKeyState(raw || null);
+      setOverrideKey(raw || null);
     } catch {
-      /* private模式等 */
+      /* private 模式等 */
     }
   }, []);
 
@@ -56,17 +63,22 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-    setUserKeyState(trimmed);
+    setOverrideKey(trimmed);
   }, []);
 
   const headers = useMemo(() => {
-    if (!userApiKey) return {};
-    return { [SILICONFLOW_API_KEY_HEADER]: userApiKey };
-  }, [userApiKey]);
+    const pub = process.env.NEXT_PUBLIC_SILICONFLOW_API_KEY?.trim();
+    const effective =
+      overrideKey?.trim() ||
+      pub ||
+      SILICONFLOW_DEFAULT_API_KEY.trim();
+    if (!effective) return {};
+    return { [SILICONFLOW_API_KEY_HEADER]: effective };
+  }, [overrideKey]);
 
   const ctx = useMemo(
-    () => ({ userApiKey, setUserApiKey }),
-    [userApiKey, setUserApiKey],
+    () => ({ userApiKey: overrideKey, setUserApiKey }),
+    [overrideKey, setUserApiKey],
   );
 
   return (

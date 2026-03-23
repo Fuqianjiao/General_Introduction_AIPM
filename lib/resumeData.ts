@@ -98,23 +98,69 @@ export const RESUME_DATA = {
     {
       id: "resource",
       title: "拓展资源来源边界：连接器 + MCP 双轨并进",
-      tagline: "连接器和MCP本质是同一问题——知识入口太窄，洞察也无法变成行动",
-      gap: "目前信息来源仅限手动上传，NotebookLM是封闭的知识消费系统，无法执行动作",
-      suggestion: "① 参考Claude 100+连接器体系支持主流SaaS直连；② 接入MCP协议让知识驱动行动，如读完会议纪要→自动创建Jira任务",
+      tagline: "连接器和 MCP 本质是同一问题——知识入口太窄，洞察也无法变成行动",
+      gap:
+        "目前多数 AI 笔记仍以「手动上传」为主，NotebookLM 类产品更像封闭的知识消费系统：文档进去了，却很难与企业里已在使用的 SaaS（CRM、工单、IM、日历）形成闭环，也无法把「读完笔记后的结论」落成可执行任务。",
+      suggestion:
+        "① 参考 Claude 的连接器（Connectors）思路，提供可扩展的「主流 SaaS 直连 + OAuth」体系，降低同步成本；② 引入 MCP（Model Context Protocol）等标准，让模型在授权下调用外部工具——例如会议纪要结构化后，一键生成 Jira / 飞书任务，实现「知识 → 行动」。",
+      relatedLinks: [
+        {
+          kind: "internal" as const,
+          label: "站内：我用过 AI 笔记（NotebookLM 板块）",
+          page: "main" as const,
+          hash: "nblm",
+        },
+      ],
     },
     {
       id: "knowledge",
       title: "补足知识管理能力，而不只是知识消费",
-      tagline: "资料坟场问题仅解决了消化环节，未解决积累环节",
-      gap: "无双向链接、图谱化展示、分层管理，资料只能按笔记本简单分类",
-      suggestion: "① 双向链接+知识图谱；② 分层标签体系；③ 知识健康度提示（过时/缺失关联）",
+      tagline: "「资料坟场」往往只解决了消化环节，没有解决积累与复用环节",
+      gap:
+        "仅有消费型问答，缺少双向链接、图谱化视图与分层标签时，笔记之间难以形成网络；时间一久，用户找不到「这条结论当初依据了哪些源」，复用成本高，也难以做团队级知识治理。",
+      suggestion:
+        "① 引入双向链接与轻量知识图谱，让条目之间可追踪引用关系；② 分层标签 + 命名规范，区分「事实 / 假设 / 待验证」；③ 知识健康度提示：长期未更新、缺少反向链接、与最新外部数据可能冲突等，推动持续维护。",
+      relatedLinks: [
+        {
+          kind: "internal" as const,
+          label: "站内：我对 AI 笔记的看法 & 迭代建议",
+          page: "main" as const,
+          hash: "nblm",
+        },
+        {
+          kind: "internal" as const,
+          label: "站内：岗位匹配与能力雷达",
+          page: "main" as const,
+          hash: "match",
+        },
+      ],
     },
     {
       id: "interaction",
       title: "从被动问答走向主动洞察与个性化适配",
-      tagline: "习惯养成的本质是让用户感到这个AI越来越懂我",
-      gap: "仍以用户提问→AI回答的被动模式为主，无法主动推送未关联知识点，也无法记忆使用偏好",
-      suggestion: "① 主动知识推送（检测关联/矛盾）；② 用户画像+个性化记忆跨会话保持",
+      tagline: "习惯养成的本质是：用户感到「它越来越懂我的工作语境」",
+      gap:
+        "若产品长期停留在「用户问一句、模型答一句」，很难形成差异化；缺少对未读关联点的主动提示、对矛盾信息的预警，以及跨会话的稳定偏好记忆，用户粘性会停留在工具层而非工作流层。",
+      suggestion:
+        "① 在授权与隐私边界内做主动推送：发现新文档与旧笔记主题相关、或结论存在潜在矛盾时轻量提醒；② 用户画像与偏好（常用数据源、行业、角色）在合规前提下跨会话保持，减少重复澄清；③ 与站内项目案例（如对话系统多轮策略）对齐，强调「上下文建模」体验。",
+      relatedLinks: [
+        {
+          kind: "internal" as const,
+          label: "站内：千牛对话系统项目（多轮与上下文）",
+          page: "project" as const,
+        },
+        {
+          kind: "internal" as const,
+          label: "站内：飞棋 RPA AI 升级",
+          page: "project2" as const,
+        },
+        {
+          kind: "internal" as const,
+          label: "站内：AI 笔记观点全文",
+          page: "main" as const,
+          hash: "nblm",
+        },
+      ],
     },
   ],
 

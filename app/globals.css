@@ -36,6 +36,13 @@ body {
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
  */
 .copilotKitChat.copilot-custom {
+  /* 统一气泡：用户 / 助手 / 底部追问建议 */
+  --ck-bubble-bg: rgba(255, 255, 255, 0.06);
+  --ck-bubble-border: 1px solid rgba(255, 255, 255, 0.1);
+  --ck-bubble-radius: 14px;
+  --ck-bubble-padding: 10px 14px;
+  --ck-bubble-text: #e8eaf0;
+  --ck-bubble-text-muted: #c8cacc;
   --copilot-kit-primary-color: #e8eaf0;
   --copilot-kit-contrast-color: #0a0c10;
   --copilot-kit-background-color: #0d0f14;
@@ -43,20 +50,38 @@ body {
   --copilot-kit-secondary-color: #14161c;
   --copilot-kit-secondary-contrast-color: #e8eaf0;
   --copilot-kit-separator-color: rgba(0, 229, 255, 0.18);
-  --copilot-kit-muted-color: #6b7280;
+  --copilot-kit-muted-color: rgba(255, 255, 255, 0.35);
   --copilot-kit-error-background: rgba(127, 29, 29, 0.45);
   --copilot-kit-error-border: #dc2626;
   --copilot-kit-error-text: #fca5a5;
   background: #0d0f14 !important;
+  /* 消息区可滚动 + 输入框固定在底部，避免内容变长后把输入区挤出可视区域 */
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessages {
   background-color: #0d0f14 !important;
   color: #c8cacc !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessagesFooter {
   background: transparent !important;
+  flex-shrink: 0 !important;
+}
+
+/* 输入区始终占位在聊天列底部 */
+.copilotKitChat.copilot-custom .copilotKitInputContainer {
+  flex-shrink: 0 !important;
 }
 
 /* AiBot: keyframes + CopilotChat overrides (must live in CSS, not inline <style>, to avoid hydration mismatch) */
@@ -87,18 +112,112 @@ body {
   line-height: 1.65 !important;
 }
 
+/* 用户 / 助手：同一套气泡皮肤（仅对齐方向不同） */
+.copilot-custom .copilotKitUserMessage,
+.copilot-custom .copilotKitAssistantMessage {
+  background: var(--ck-bubble-bg) !important;
+  border: var(--ck-bubble-border) !important;
+  border-radius: var(--ck-bubble-radius) !important;
+  padding: var(--ck-bubble-padding) !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
+}
+
 .copilot-custom .copilotKitUserMessage {
-  background: linear-gradient(135deg, rgba(123, 97, 255, 0.22), rgba(0, 229, 255, 0.12)) !important;
-  border: 1px solid rgba(0, 229, 255, 0.18) !important;
-  color: #e8eaf0 !important;
-  border-radius: 8px !important;
+  color: var(--ck-bubble-text) !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 .copilot-custom .copilotKitAssistantMessage {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  color: #c8cacc !important;
-  border-radius: 8px !important;
+  color: var(--ck-bubble-text-muted) !important;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+/* 操作栏：放在气泡下方左对齐，与追问条视觉一致 */
+.copilot-custom .copilotKitAssistantMessage .copilotKitMessageControls {
+  position: static !important;
+  opacity: 1 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 6px 2px 0 !important;
+  margin: 0 !important;
+}
+
+.copilot-custom .copilotKitMessageControlButton {
+  color: rgba(255, 255, 255, 0.55) !important;
+  background: transparent !important;
+}
+
+.copilot-custom .copilotKitMessageControlButton:hover {
+  color: rgba(255, 255, 255, 0.9) !important;
+  transform: none !important;
+}
+
+.copilot-custom .copilotKitMessageControlButton.active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #e8eaf0 !important;
+}
+
+.copilot-custom .copilotKitMessageControlButton svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* 底部 AI 追问 / 建议：与主气泡同款容器 */
+.copilotKitChat.copilot-custom .copilotKitMessagesFooter {
+  padding: 0 14px 8px !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading) {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  background: var(--ck-bubble-bg) !important;
+  border: var(--ck-bubble-border) !important;
+  border-radius: var(--ck-bubble-radius) !important;
+  padding: var(--ck-bubble-padding) !important;
+  color: var(--ck-bubble-text) !important;
+  font-size: 12px !important;
+  font-family: 'Noto Sans SC', sans-serif !important;
+  line-height: 1.55 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: border-color 0.15s ease, background 0.15s ease !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion:not(.loading):hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(0, 229, 255, 0.22) !important;
+  transform: none !important;
+}
+
+.copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion.loading {
+  background: transparent !important;
+  border: none !important;
+  padding: 4px 0 !important;
+  justify-content: flex-start !important;
 }
 
 /* 设计稿：底栏输入区横向排列，左输入框 + 右 30×30 渐变发送钮 */

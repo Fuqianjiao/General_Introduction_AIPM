@@ -16,9 +16,16 @@ npm install
 本地可编辑 `.env.local`（复制 `.env.example`）：
 ```
 SILICONFLOW_API_KEY=你的硅基流动APIKey
-SILICONFLOW_MODEL=Qwen/Qwen2.5-72B-Instruct
+SILICONFLOW_MODEL=Qwen/Qwen3-14B
 SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
 ```
+
+若出现 **`AI_APICallError: Not Found`**：
+
+1. **最常见（已在本仓库修复）**：CopilotKit 依赖的 `@ai-sdk/openai` 默认走 **`/v1/responses`**，硅基流动不支持；本仓库用 **`SiliconFlowCompatibleOpenAIAdapter`** 强制走 **`/v1/chat/completions`**，并对官方 `openai.beta.chat.completions.stream` 做了兼容补丁（见 `lib/siliconFlowOpenAIAdapter.ts`、`lib/patchOpenAIForSiliconFlow.ts`）。
+2. **其次**：`SILICONFLOW_MODEL` 在控制台已下线或拼写错误（如旧 ID `Qwen2.5-72B`）。请核对文档后更新模型名并重启 dev。
+
+**本地冒烟（需已 `npm run dev` 且配置 Key）**：`GET http://localhost:3000/api/copilotkit` 应返回 JSON；再用 `curl` 发 `agent/run` 应出现 `TEXT_MESSAGE_CONTENT` 事件（详见仓库内 `app/api/copilotkit/route.ts` 注释）。
 
 ### 3. 本地运行
 ```bash
@@ -32,7 +39,7 @@ npm run dev
 2. 登录 [vercel.com](https://vercel.com)，Import 你的 GitHub 仓库
 3. 在 Vercel 项目 Settings → Environment Variables 添加：
    - `SILICONFLOW_API_KEY` = 你的API Key
-   - `SILICONFLOW_MODEL` = Qwen/Qwen2.5-72B-Instruct
+   - `SILICONFLOW_MODEL` = Qwen/Qwen3-14B
    - `SILICONFLOW_BASE_URL` = https://api.siliconflow.cn/v1
 4. Deploy
 
@@ -64,7 +71,9 @@ fuqianjiao-ai/
 │   ├── ProjectPage.tsx     ← 千牛项目 STAR 详解
 │   └── Project2Page.tsx    ← 飞棋RPA项目 STAR 详解
 ├── lib/
-│   └── resumeData.ts       ← 简历知识库（AI Bot 数据源）
+│   ├── resumeData.ts                  ← 简历知识库
+│   ├── siliconFlowOpenAIAdapter.ts   ← 硅基流动：强制 Chat Completions（非 Responses）
+│   └── patchOpenAIForSiliconFlow.ts  ← 兼容 beta.stream → 标准流式 chat
 ├── .env.local              ← API Keys（不上传 GitHub）
 └── .gitignore
 ```
