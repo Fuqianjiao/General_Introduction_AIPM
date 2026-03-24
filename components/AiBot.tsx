@@ -30,16 +30,12 @@ interface Props {
   currentPage: PageName;
 }
 
-/** ② 快捷问题 — 文案与设计稿一致；技术类=青 / 技能库=技术栈卡片样式（见 skills_card.html） */
-const QUICK_ACTIONS: { label: string; q: string; variant: "tech" | "skills" }[] = [
-  { label: "核心项目", q: "她有哪些核心项目经历？", variant: "tech" },
-  { label: "AI笔记看法", q: "她对 AI 笔记产品有什么洞察？", variant: "tech" },
-  { label: "岗位匹配度", q: "她与阿里 AI 笔记岗位的匹配度如何？", variant: "tech" },
-  {
-    label: "技能库",
-    q: "请展示傅倩娇的技术能力图谱与核心技能栈。",
-    variant: "skills",
-  },
+/** ② 快捷问题 — 文案与设计稿一致；青系胶囊条 */
+const QUICK_ACTIONS: { label: string; q: string }[] = [
+  { label: "核心项目", q: "她有哪些核心项目经历？" },
+  { label: "AI笔记看法", q: "她对 AI 笔记产品有什么洞察？" },
+  { label: "岗位匹配度", q: "她与阿里 AI 笔记岗位的匹配度如何？" },
+  { label: "技能库", q: "请展示傅倩娇的技术能力图谱与核心技能栈。" },
 ];
 
 /** 首次欢迎 + 顶部快捷条仅展示一次；之后推荐问题走 Copilot 底部 suggestions */
@@ -56,15 +52,7 @@ function readChatOnboardingDone(): boolean {
 
 type ChatSuggestionItem = { title: string; message: string; className?: string };
 
-function quickChipStyle(variant: "tech" | "skills", hover: boolean): CSSProperties {
-  if (variant === "skills") {
-    return {
-      background: hover ? "rgba(13,15,20,0.98)" : "rgba(13,15,20,0.96)",
-      border: `1px solid ${hover ? "rgba(0,229,255,0.38)" : "rgba(0,229,255,0.22)"}`,
-      color: "#e8eaf0",
-      boxShadow: hover ? "0 0 14px rgba(0,229,255,0.12)" : "0 0 10px rgba(0,229,255,0.06)",
-    };
-  }
+function quickChipStyle(hover: boolean): CSSProperties {
   return {
     background: hover ? "rgba(0,229,255,0.1)" : "rgba(0,229,255,0.07)",
     border: `1px solid ${hover ? "rgba(0,229,255,0.35)" : "rgba(0,229,255,0.18)"}`,
@@ -961,12 +949,10 @@ export default function AiBot({ navigate, currentPage }: Props) {
   const [chatOnboardingDone, setChatOnboardingDone] = useState(false);
   const footerFollowUps = useMemo<ChatSuggestionItem[]>(
     () =>
-      QUICK_ACTIONS.map(({ label, q, variant }) => ({
-        title:
-          variant === "skills" ? "◆ 技术能力图谱\n技能库" : label,
+      QUICK_ACTIONS.map(({ label, q }) => ({
+        title: label,
         message: q,
-        className:
-          variant === "skills" ? "suggestion-chip-skills" : "suggestion-chip-tech",
+        className: "suggestion-chip-tech",
       })),
     [],
   );
@@ -1828,74 +1814,33 @@ export default function AiBot({ navigate, currentPage }: Props) {
               }}
             >
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                {QUICK_ACTIONS.map(({ label, q, variant }) => (
+                {QUICK_ACTIONS.map(({ label, q }) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => submitCopilotQuestion(q)}
                     style={{
-                      ...quickChipStyle(variant, false),
+                      ...quickChipStyle(false),
                       fontSize: 11,
-                      padding: variant === "skills" ? "6px 12px 6px 8px" : "4px 10px",
-                      borderRadius: variant === "skills" ? 8 : 999,
+                      padding: "4px 10px",
+                      borderRadius: 999,
                       cursor: "pointer",
-                      transition: "border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s",
+                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
                       fontFamily: "'Noto Sans SC',sans-serif",
-                      whiteSpace: variant === "skills" ? "normal" : "nowrap",
+                      whiteSpace: "nowrap",
                       fontWeight: 500,
                       lineHeight: 1.35,
-                      display: "inline-flex",
-                      alignItems: variant === "skills" ? "center" : "center",
-                      gap: variant === "skills" ? 8 : undefined,
                     }}
                     onMouseEnter={(e) => {
-                      const s = quickChipStyle(variant, true);
+                      const s = quickChipStyle(true);
                       Object.assign(e.currentTarget.style, s as CSSProperties);
                     }}
                     onMouseLeave={(e) => {
-                      const s = quickChipStyle(variant, false);
+                      const s = quickChipStyle(false);
                       Object.assign(e.currentTarget.style, s as CSSProperties);
                     }}
                   >
-                    {variant === "skills" ? (
-                      <>
-                        <span
-                          style={{
-                            width: 3,
-                            height: 14,
-                            background: "#00e5ff",
-                            borderRadius: 2,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "flex-start",
-                            gap: 2,
-                            textAlign: "left",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: 9,
-                              color: "#00e5ff",
-                              letterSpacing: "0.1em",
-                              lineHeight: 1.2,
-                              fontWeight: 500,
-                            }}
-                          >
-                            ◆ 技术能力图谱
-                          </span>
-                          <span style={{ fontSize: 11, color: "#e8eaf0", fontWeight: 600, lineHeight: 1.2 }}>
-                            技能库
-                          </span>
-                        </span>
-                      </>
-                    ) : (
-                      label
-                    )}
+                    {label}
                   </button>
                 ))}
               </div>
