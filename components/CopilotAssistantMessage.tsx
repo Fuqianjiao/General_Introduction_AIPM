@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * 自定义助手消息：只要本回合有结构化卡片（generative UI），即不渲染 Markdown 气泡，
- * 避免模型多写一段总结；仅展示卡片 + 底部操作栏。无卡片时仍走普通 Markdown 气泡。
+ * 自定义助手消息：有结构化卡片（generative UI）时，卡片与助手正文**同时**展示（正文在上/下依 position），
+ * 以便展示「卡片 + ≤25 字承接」；仅当本回合**无正文**且仅有卡片时，才只显示卡片。
+ * 无卡片时走普通 Markdown 气泡。
  *
  * CopilotKit 在一次回复里可能连续插入多条 role=assistant 的消息（如工具卡片与后续正文），
  * 若每条都画操作栏会出现两行相同的操作栏 —— 仅在「连续助手段」的最后一条展示操作栏；
@@ -12,22 +13,35 @@ import { useState } from "react";
 import { Markdown, useChatContext, type AssistantMessageProps } from "@copilotkit/react-ui";
 import type { Message } from "@copilotkit/shared";
 
-/** 从本条起向前合并同一轮「连续助手段」的正文，供复制为一次完整回复 */
-function collectAssistantBlockPlainText(messages: Message[], endIndex: number): string {
-  if (endIndex < 0 || endIndex >= messages.length) return "";
-  let start = endIndex;
-  while (start > 0 && messages[start - 1]?.role === "assistant") {
+function getMessageText(m: Message | undefined): string {
+  if (!m || typeof m !== "object" || !("content" in m)) return "";
+  return String((m as { content?: unknown }).content ?? "").trim();
+}
+
+function hasMessageGenerative(m: Message | undefined): boolean {
+  if (!m || typeof m !== "object") return false;
+  const mm = m as { generativeUI?: unknown; subComponent?: unknown };
+  return Boolean(mm.generativeUI || mm.subComponent);
+}
+
+/** 按「一轮回复（直到下一条 user）」聚合助手正文，供复制为一次完整回复 */
+function collectAssistantTurnPlainText(messages: Message[], selfIndex: number): string {
+  if (selfIndex < 0 || selfIndex >= messages.length) return "";
+
+  let start = selfIndex;
+  while (start > 0 && messages[start - 1]?.role !== "user") {
     start--;
   }
+  let end = selfIndex;
+  while (end < messages.length - 1 && messages[end + 1]?.role !== "user") {
+    end++;
+  }
+
   const parts: string[] = [];
-  for (let i = start; i <= endIndex; i++) {
+  for (let i = start; i <= end; i++) {
     const m = messages[i];
     if (m?.role !== "assistant") continue;
-    const c =
-      m && typeof m === "object" && "content" in m
-        ? String((m as { content?: unknown }).content ?? "")
-        : "";
-    const t = c.trim();
+    const t = getMessageText(m);
     if (t) parts.push(t);
   }
   return parts.join("\n\n");
@@ -52,23 +66,47 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
 
   const [copied, setCopied] = useState(false);
   const rawContent = message?.content ?? "";
-  const contentTrim = rawContent.trim();
+  const contentTrim = String(rawContent).trim();
 
   const messages: Message[] = messagesProp ?? [];
   const selfId = message?.id;
-  const selfIndex =
-    selfId != null ? messages.findIndex((m) => m.id === selfId) : -1;
-  const nextMsg =
-    selfIndex >= 0 && selfIndex < messages.length - 1
-      ? messages[selfIndex + 1]
-      : undefined;
-  /** 下一条仍是助手时，本段属于同一轮回复的中间条，不画底部操作栏（操作栏只在最后一条卡片/气泡下出现） */
-  const isTerminalAssistantInBlock =
-    selfIndex < 0 ? Boolean(isCurrentMessage) : nextMsg?.role !== "assistant";
+  const selfIndex = selfId != null ? messages.findIndex((m) => m.id === selfId) : -1;
+  const resolvedSelfIndex =
+    selfIndex >= 0 ? selfIndex : messages.findIndex((m) => m === (message as unknown as Message));
+
+  const turnStart =
+    resolvedSelfIndex < 0
+      ? -1
+      : (() => {
+          let i = resolvedSelfIndex;
+          while (i > 0 && messages[i - 1]?.role !== "user") i--;
+          return i;
+        })();
+  const turnEndExclusive =
+    resolvedSelfIndex < 0
+      ? -1
+      : (() => {
+          let i = resolvedSelfIndex + 1;
+          while (i < messages.length && messages[i]?.role !== "user") i++;
+          return i;
+        })();
+
+  const hasPreviousDisplayableAssistantInTurn =
+    resolvedSelfIndex > turnStart &&
+    messages
+      .slice(turnStart, resolvedSelfIndex)
+      .some((m) => m.role === "assistant" && (getMessageText(m) || hasMessageGenerative(m)));
+
+  const hasLaterDisplayableAssistantInTurn =
+    resolvedSelfIndex >= 0 &&
+    turnEndExclusive >= 0 &&
+    messages
+      .slice(resolvedSelfIndex + 1, turnEndExclusive)
+      .some((m) => m.role === "assistant" && (getMessageText(m) || hasMessageGenerative(m)));
 
   const fullReplyTextForCopy =
-    selfIndex >= 0
-      ? collectAssistantBlockPlainText(messages, selfIndex)
+    resolvedSelfIndex >= 0
+      ? collectAssistantTurnPlainText(messages, resolvedSelfIndex)
       : rawContent.trim();
 
   const handleCopy = () => {
@@ -91,15 +129,24 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
   const renderBefore = Boolean(subComponent && subComponentPosition === "before");
   const renderAfter = Boolean(subComponent && subComponentPosition !== "before");
   const hasGenerative = Boolean(subComponent);
-  /** 本回合已有结构化卡片时不再展示助手 Markdown 气泡，避免与卡片重复总结 */
-  const showMarkdownBubble = Boolean(contentTrim && !hasGenerative);
-  const toolsOnlyLayout = hasGenerative && !showMarkdownBubble;
+  /** 只要有模型正文就展示气泡（含「卡片 + 短承接」）；勿因存在卡片而隐藏正文，否则会出现空白气泡 */
+  const showMarkdownBubble = Boolean(contentTrim);
+  const toolsOnlyLayout = hasGenerative && !contentTrim;
 
-  const showActionBar =
-    isTerminalAssistantInBlock &&
+  /** 本段结束、无卡片、无文字（模型未返回或流式异常） */
+  const isEmptyTerminalReply =
+    !hasLaterDisplayableAssistantInTurn &&
     !isLoading &&
     !isGenerating &&
-    (showMarkdownBubble || hasGenerative);
+    !contentTrim &&
+    !hasGenerative &&
+    !hasPreviousDisplayableAssistantInTurn;
+
+  const showActionBar =
+    !hasLaterDisplayableAssistantInTurn &&
+    !isLoading &&
+    !isGenerating &&
+    (showMarkdownBubble || hasGenerative || (isEmptyTerminalReply && !hasPreviousDisplayableAssistantInTurn));
 
   const Controls = () => (
     <div className={`copilotKitMessageControls ${isCurrentMessage ? "currentMessage" : ""}`}>
@@ -163,6 +210,19 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
 
       {showMarkdownBubble ? (
         <Markdown content={rawContent} components={markdownTagRenderers} />
+      ) : null}
+
+      {isEmptyTerminalReply ? (
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(232, 234, 240, 0.45)",
+            lineHeight: 1.55,
+            padding: "4px 0 2px",
+          }}
+        >
+          未收到文字回复，可点下方重新生成，或换一种问法试试。
+        </div>
       ) : null}
 
       {showActionBar ? <Controls /> : null}
