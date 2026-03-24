@@ -30,27 +30,7 @@ body {
 .copilotKitPopup {
   display: none !important; /* We use our own panel */
 }
-/* 彻底隐藏 Assistant 消息下方的所有操作控件 */
-.copilot-custom .copilotKitMessageControls,
-.copilot-custom .copilotKitMessageActions,
-.copilot-custom .copilotKitMessageControlButton,
-.copilot-custom [class*="MessageControls"],
-.copilot-custom [class*="MessageActions"] {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  width: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-/* 修正：如果是因为卡片没有容器导致图标悬浮在卡片上，强制移除消息块背景 */
-.copilot-custom .copilotKitAssistantMessage {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
+/* 助手消息操作栏（复制 / 刷新 / 赞 / 踩）已恢复，勿再全局隐藏 */
 /*
  * CopilotKit 默认使用 :root 浅色变量（消息区、聊天根、Powered by 底栏均为白/浅灰）。
  * 本站未挂 .dark / color-scheme:dark，因此必须在本嵌入聊天根上重写 token，否则会透出大块白底。
@@ -273,10 +253,12 @@ body {
   box-sizing: border-box !important;
 }
 
-/* 操作栏：在气泡盒子之外，略下移 */
+/* 操作栏：在气泡或卡片底部外侧，略下移 */
 .copilot-custom .copilotKitAssistantMessage .copilotKitMessageControls {
   position: static !important;
+  visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
@@ -284,6 +266,9 @@ body {
   margin-top: 8px !important;
   margin-left: 2px !important;
   padding: 0 !important;
+  height: auto !important;
+  width: auto !important;
+  min-height: 0 !important;
 }
 
 /* 仅有结构化卡片、无助手正文时：不要气泡背景，操作栏紧跟卡片 */
@@ -299,22 +284,30 @@ body {
   margin-top: 6px !important;
 }
 
-.copilot-custom .copilotKitMessageControlButton {
+.copilot-custom .copilotKitAssistantMessage .copilotKitMessageControlButton {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
   color: rgba(255, 255, 255, 0.55) !important;
   background: transparent !important;
 }
 
-.copilot-custom .copilotKitMessageControlButton:hover {
+.copilot-custom .copilotKitAssistantMessage .copilotKitMessageControlButton:hover {
   color: rgba(255, 255, 255, 0.9) !important;
   transform: none !important;
 }
 
-.copilot-custom .copilotKitMessageControlButton.active {
+.copilot-custom .copilotKitAssistantMessage .copilotKitMessageControlButton.active {
   background: rgba(255, 255, 255, 0.12) !important;
   color: #e8eaf0 !important;
 }
 
-.copilot-custom .copilotKitMessageControlButton svg {
+.copilot-custom .copilotKitAssistantMessage .copilotKitMessageControlButton svg {
   width: 16px !important;
   height: 16px !important;
 }
@@ -381,25 +374,52 @@ body {
   color: #9ef5ff !important;
 }
 
-/* 联系她：紫色强调 */
+/* 技能库：与 skills_card.html 一致的深色卡片 + 青色描边（底栏推荐） */
 .copilotKitChat.copilot-custom
   .copilotKitMessages
   footer
   .suggestions
-  .suggestion.suggestion-chip-contact:not(.loading) {
-  background: rgba(123, 97, 255, 0.1) !important;
-  border: 1px solid rgba(123, 97, 255, 0.25) !important;
-  color: #a898ff !important;
+  .suggestion.suggestion-chip-skills:not(.loading) {
+  background: rgba(13, 15, 20, 0.96) !important;
+  border: 1px solid rgba(0, 229, 255, 0.22) !important;
+  color: #e8eaf0 !important;
+  border-radius: 8px !important;
+  padding: 6px 12px 6px 8px !important;
+  white-space: pre-line !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  line-height: 1.35 !important;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.06) !important;
 }
 
 .copilotKitChat.copilot-custom
   .copilotKitMessages
   footer
   .suggestions
-  .suggestion.suggestion-chip-contact:not(.loading):hover {
-  background: rgba(123, 97, 255, 0.12) !important;
-  border-color: rgba(168, 152, 255, 0.4) !important;
-  color: #d4c8ff !important;
+  .suggestion.suggestion-chip-skills:not(.loading)::first-line {
+  color: #00e5ff !important;
+  font-size: 9px !important;
+  letter-spacing: 0.1em !important;
+}
+
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-skills:not(.loading):hover {
+  background: rgba(13, 15, 20, 0.98) !important;
+  border-color: rgba(0, 229, 255, 0.38) !important;
+  color: #f0f2f8 !important;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.12) !important;
+}
+
+.copilotKitChat.copilot-custom
+  .copilotKitMessages
+  footer
+  .suggestions
+  .suggestion.suggestion-chip-skills:not(.loading):hover::first-line {
+  color: #00e5ff !important;
 }
 
 .copilotKitChat.copilot-custom .copilotKitMessages footer .suggestions .suggestion.loading {

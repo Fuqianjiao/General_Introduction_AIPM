@@ -1,0 +1,124 @@
+diff --git a/node_modules/@copilotkitnext/agent/dist/index.cjs b/node_modules/@copilotkitnext/agent/dist/index.cjs
+index 60059a6..47deb32 100644
+--- a/node_modules/@copilotkitnext/agent/dist/index.cjs
++++ b/node_modules/@copilotkitnext/agent/dist/index.cjs
+@@ -383,8 +383,18 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 						}
+ 						return state;
+ 					};
++					const flushOpenToolCalls = () => {
++						for (const [toolCallId, state] of toolCallStates) if (state.started && !state.ended) {
++							state.ended = true;
++							subscriber.next({
++								type: _ag_ui_client.EventType.TOOL_CALL_END,
++								toolCallId
++							});
++						}
++					};
+ 					for await (const part of response.fullStream) switch (part.type) {
+ 						case "abort": {
++							flushOpenToolCalls();
+ 							const abortEndEvent = {
+ 								type: _ag_ui_client.EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+@@ -548,6 +558,7 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 							break;
+ 						}
+ 						case "finish": {
++							flushOpenToolCalls();
+ 							const finishedEvent = {
+ 								type: _ag_ui_client.EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+@@ -572,6 +583,7 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 					}
+ 					if (!terminalEventEmitted) {
+ 						if (abortController.signal.aborted) {} else {
++							flushOpenToolCalls();
+ 							const finishedEvent = {
+ 								type: _ag_ui_client.EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+diff --git a/node_modules/@copilotkitnext/agent/dist/index.mjs b/node_modules/@copilotkitnext/agent/dist/index.mjs
+index 27dabe4..39fb074 100644
+--- a/node_modules/@copilotkitnext/agent/dist/index.mjs
++++ b/node_modules/@copilotkitnext/agent/dist/index.mjs
+@@ -382,8 +382,18 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 						}
+ 						return state;
+ 					};
++					const flushOpenToolCalls = () => {
++						for (const [toolCallId, state] of toolCallStates) if (state.started && !state.ended) {
++							state.ended = true;
++							subscriber.next({
++								type: EventType.TOOL_CALL_END,
++								toolCallId
++							});
++						}
++					};
+ 					for await (const part of response.fullStream) switch (part.type) {
+ 						case "abort": {
++							flushOpenToolCalls();
+ 							const abortEndEvent = {
+ 								type: EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+@@ -547,6 +557,7 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 							break;
+ 						}
+ 						case "finish": {
++							flushOpenToolCalls();
+ 							const finishedEvent = {
+ 								type: EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+@@ -571,6 +582,7 @@ This is state from the application that you can edit by calling AGUISendStateSna
+ 					}
+ 					if (!terminalEventEmitted) {
+ 						if (abortController.signal.aborted) {} else {
++							flushOpenToolCalls();
+ 							const finishedEvent = {
+ 								type: EventType.RUN_FINISHED,
+ 								threadId: input.threadId,
+diff --git a/node_modules/@copilotkitnext/agent/src/index.ts b/node_modules/@copilotkitnext/agent/src/index.ts
+index 87b588b..1c19181 100644
+--- a/node_modules/@copilotkitnext/agent/src/index.ts
++++ b/node_modules/@copilotkitnext/agent/src/index.ts
+@@ -948,10 +948,25 @@ export class BuiltInAgent extends AbstractAgent {
+             return state;
+           };
+ 
++          /** 部分兼容网关只流式 tool-input-* 而不发最终 tool-call，AG-UI 校验会要求 TOOL_CALL_END 先于 RUN_FINISHED */
++          const flushOpenToolCalls = () => {
++            for (const [toolCallId, state] of toolCallStates) {
++              if (state.started && !state.ended) {
++                state.ended = true;
++                const endEvent: ToolCallEndEvent = {
++                  type: EventType.TOOL_CALL_END,
++                  toolCallId,
++                };
++                subscriber.next(endEvent);
++              }
++            }
++          };
++
+           // Process fullStream events
+           for await (const part of response.fullStream) {
+             switch (part.type) {
+               case "abort": {
++                flushOpenToolCalls();
+                 const abortEndEvent: RunFinishedEvent = {
+                   type: EventType.RUN_FINISHED,
+                   threadId: input.threadId,
+@@ -1164,6 +1179,7 @@ export class BuiltInAgent extends AbstractAgent {
+               }
+ 
+               case "finish": {
++                flushOpenToolCalls();
+                 // Emit run finished event
+                 const finishedEvent: RunFinishedEvent = {
+                   type: EventType.RUN_FINISHED,
+@@ -1201,6 +1217,7 @@ export class BuiltInAgent extends AbstractAgent {
+               // Let the runner finalize the stream on stop requests so it can
+               // inject consistent closing events and a RUN_FINISHED marker.
+             } else {
++              flushOpenToolCalls();
+               const finishedEvent: RunFinishedEvent = {
+                 type: EventType.RUN_FINISHED,
+                 threadId: input.threadId,

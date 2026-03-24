@@ -30,12 +30,16 @@ interface Props {
   currentPage: PageName;
 }
 
-/** ② 快捷问题 — 文案与设计稿一致；技术类=青 / 联系=紫 */
-const QUICK_ACTIONS: { label: string; q: string; variant: "tech" | "contact" }[] = [
+/** ② 快捷问题 — 文案与设计稿一致；技术类=青 / 技能库=技术栈卡片样式（见 skills_card.html） */
+const QUICK_ACTIONS: { label: string; q: string; variant: "tech" | "skills" }[] = [
   { label: "核心项目", q: "她有哪些核心项目经历？", variant: "tech" },
   { label: "AI笔记看法", q: "她对 AI 笔记产品有什么洞察？", variant: "tech" },
   { label: "岗位匹配度", q: "她与阿里 AI 笔记岗位的匹配度如何？", variant: "tech" },
-  { label: "联系她", q: "我想联系傅倩娇，请提供她的联系方式。", variant: "contact" },
+  {
+    label: "技能库",
+    q: "请展示傅倩娇的技术能力图谱与核心技能栈。",
+    variant: "skills",
+  },
 ];
 
 /** 首次欢迎 + 顶部快捷条仅展示一次；之后推荐问题走 Copilot 底部 suggestions */
@@ -52,12 +56,13 @@ function readChatOnboardingDone(): boolean {
 
 type ChatSuggestionItem = { title: string; message: string; className?: string };
 
-function quickChipStyle(variant: "tech" | "contact", hover: boolean): CSSProperties {
-  if (variant === "contact") {
+function quickChipStyle(variant: "tech" | "skills", hover: boolean): CSSProperties {
+  if (variant === "skills") {
     return {
-      background: hover ? "rgba(123,97,255,0.12)" : "rgba(123,97,255,0.1)",
-      border: `1px solid ${hover ? "rgba(168,152,255,0.4)" : "rgba(123,97,255,0.25)"}`,
-      color: hover ? "#d4c8ff" : "#a898ff",
+      background: hover ? "rgba(13,15,20,0.98)" : "rgba(13,15,20,0.96)",
+      border: `1px solid ${hover ? "rgba(0,229,255,0.38)" : "rgba(0,229,255,0.22)"}`,
+      color: "#e8eaf0",
+      boxShadow: hover ? "0 0 14px rgba(0,229,255,0.12)" : "0 0 10px rgba(0,229,255,0.06)",
     };
   }
   return {
@@ -957,10 +962,11 @@ export default function AiBot({ navigate, currentPage }: Props) {
   const footerFollowUps = useMemo<ChatSuggestionItem[]>(
     () =>
       QUICK_ACTIONS.map(({ label, q, variant }) => ({
-        title: label,
+        title:
+          variant === "skills" ? "◆ 技术能力图谱\n技能库" : label,
         message: q,
         className:
-          variant === "contact" ? "suggestion-chip-contact" : "suggestion-chip-tech",
+          variant === "skills" ? "suggestion-chip-skills" : "suggestion-chip-tech",
       })),
     [],
   );
@@ -1830,14 +1836,17 @@ export default function AiBot({ navigate, currentPage }: Props) {
                     style={{
                       ...quickChipStyle(variant, false),
                       fontSize: 11,
-                      padding: "4px 10px",
-                      borderRadius: 999,
+                      padding: variant === "skills" ? "6px 12px 6px 8px" : "4px 10px",
+                      borderRadius: variant === "skills" ? 8 : 999,
                       cursor: "pointer",
-                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
+                      transition: "border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s",
                       fontFamily: "'Noto Sans SC',sans-serif",
-                      whiteSpace: "nowrap",
+                      whiteSpace: variant === "skills" ? "normal" : "nowrap",
                       fontWeight: 500,
                       lineHeight: 1.35,
+                      display: "inline-flex",
+                      alignItems: variant === "skills" ? "center" : "center",
+                      gap: variant === "skills" ? 8 : undefined,
                     }}
                     onMouseEnter={(e) => {
                       const s = quickChipStyle(variant, true);
@@ -1848,7 +1857,45 @@ export default function AiBot({ navigate, currentPage }: Props) {
                       Object.assign(e.currentTarget.style, s as CSSProperties);
                     }}
                   >
-                    {label}
+                    {variant === "skills" ? (
+                      <>
+                        <span
+                          style={{
+                            width: 3,
+                            height: 14,
+                            background: "#00e5ff",
+                            borderRadius: 2,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                            gap: 2,
+                            textAlign: "left",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 9,
+                              color: "#00e5ff",
+                              letterSpacing: "0.1em",
+                              lineHeight: 1.2,
+                              fontWeight: 500,
+                            }}
+                          >
+                            ◆ 技术能力图谱
+                          </span>
+                          <span style={{ fontSize: 11, color: "#e8eaf0", fontWeight: 600, lineHeight: 1.2 }}>
+                            技能库
+                          </span>
+                        </span>
+                      </>
+                    ) : (
+                      label
+                    )}
                   </button>
                 ))}
               </div>

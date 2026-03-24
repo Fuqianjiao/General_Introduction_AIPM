@@ -66,8 +66,9 @@ function getHandleForApiKey(apiKey: string) {
 
   /**
    * CopilotKit 默认用 BuiltInAgent + AI SDK streamText(getLanguageModel)。
-   * 该路径**不会**读取 OpenAIAdapter.disableParallelToolCalls，需在 providerOptions 显式关闭并行 tool，
-   * 否则多工具同轮仍可能触发「Cannot send RUN_FINISHED while tool calls are still active」。
+   * 该路径**不会**读取 OpenAIAdapter.disableParallelToolCalls，需在 providerOptions 显式关闭并行 tool。
+   * 硅基流动等网关若只流式 tool-input-* 而不发最终 tool-call，需在 RUN_FINISHED 前补 TOOL_CALL_END
+   *（见 `patches/@copilotkitnext+agent+*.patch`），否则仍会报「Cannot send RUN_FINISHED while tool calls are still active」。
    */
   const copilotRuntime = new CopilotRuntime({
     agents: {

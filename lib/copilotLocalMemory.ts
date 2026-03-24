@@ -24,7 +24,7 @@ export function loadChatMemory(): StoredChatMemory {
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { recent: [], longTerm: "", updatedAt: "" };
+    if (!raw?.trim()) return { recent: [], longTerm: "", updatedAt: "" };
     const p = JSON.parse(raw) as StoredChatMemory;
     if (!p || !Array.isArray(p.recent)) return { recent: [], longTerm: "", updatedAt: "" };
     return {

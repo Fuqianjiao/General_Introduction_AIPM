@@ -5,11 +5,33 @@
  * 避免模型多写一段总结；仅展示卡片 + 底部操作栏。无卡片时仍走普通 Markdown 气泡。
  *
  * CopilotKit 在一次回复里可能连续插入多条 role=assistant 的消息（如工具卡片与后续正文），
- * 若每条都画操作栏会出现两行相同的再生/复制/赞踩 —— 仅在「连续助手段」的最后一条展示操作栏。
+ * 若每条都画操作栏会出现两行相同的操作栏 —— 仅在「连续助手段」的最后一条展示操作栏；
+ * 复制会拼接该段内所有助手消息的文本，视为一次完整回复。
  */
 import { useState } from "react";
 import { Markdown, useChatContext, type AssistantMessageProps } from "@copilotkit/react-ui";
 import type { Message } from "@copilotkit/shared";
+
+/** 从本条起向前合并同一轮「连续助手段」的正文，供复制为一次完整回复 */
+function collectAssistantBlockPlainText(messages: Message[], endIndex: number): string {
+  if (endIndex < 0 || endIndex >= messages.length) return "";
+  let start = endIndex;
+  while (start > 0 && messages[start - 1]?.role === "assistant") {
+    start--;
+  }
+  const parts: string[] = [];
+  for (let i = start; i <= endIndex; i++) {
+    const m = messages[i];
+    if (m?.role !== "assistant") continue;
+    const c =
+      m && typeof m === "object" && "content" in m
+        ? String((m as { content?: unknown }).content ?? "")
+        : "";
+    const t = c.trim();
+    if (t) parts.push(t);
+  }
+  return parts.join("\n\n");
+}
 
 export function CopilotAssistantMessage(props: AssistantMessageProps) {
   const { icons, labels } = useChatContext();
@@ -40,18 +62,25 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
     selfIndex >= 0 && selfIndex < messages.length - 1
       ? messages[selfIndex + 1]
       : undefined;
-  /** 下一条仍是助手时，本段属于同一轮回复的中间条，不画底部操作栏 */
+  /** 下一条仍是助手时，本段属于同一轮回复的中间条，不画底部操作栏（操作栏只在最后一条卡片/气泡下出现） */
   const isTerminalAssistantInBlock =
     selfIndex < 0 ? Boolean(isCurrentMessage) : nextMsg?.role !== "assistant";
 
+  const fullReplyTextForCopy =
+    selfIndex >= 0
+      ? collectAssistantBlockPlainText(messages, selfIndex)
+      : rawContent.trim();
+
   const handleCopy = () => {
-    if (rawContent && onCopy) {
-      void navigator.clipboard.writeText(rawContent);
+    const text = fullReplyTextForCopy || rawContent.trim();
+    if (!text) return;
+    if (onCopy) {
+      void navigator.clipboard.writeText(text);
       setCopied(true);
-      onCopy(rawContent);
+      onCopy(text);
       setTimeout(() => setCopied(false), 2000);
-    } else if (rawContent) {
-      void navigator.clipboard.writeText(rawContent);
+    } else {
+      void navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -77,15 +106,6 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
       <button
         type="button"
         className="copilotKitMessageControlButton"
-        onClick={() => onRegenerate?.()}
-        aria-label={labels.regenerateResponse}
-        title={labels.regenerateResponse}
-      >
-        {icons.regenerateIcon}
-      </button>
-      <button
-        type="button"
-        className="copilotKitMessageControlButton"
         onClick={handleCopy}
         aria-label={labels.copyToClipboard}
         title={labels.copyToClipboard}
@@ -95,6 +115,15 @@ export function CopilotAssistantMessage(props: AssistantMessageProps) {
         ) : (
           icons.copyIcon
         )}
+      </button>
+      <button
+        type="button"
+        className="copilotKitMessageControlButton"
+        onClick={() => onRegenerate?.()}
+        aria-label={labels.regenerateResponse}
+        title={labels.regenerateResponse}
+      >
+        {icons.regenerateIcon}
       </button>
       {onThumbsUp && message ? (
         <button

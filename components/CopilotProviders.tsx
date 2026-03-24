@@ -42,6 +42,9 @@ export function useSiliconflowUserKeyOptional(): Ctx | null {
 /**
  * 默认不往浏览器塞 Key：请求 /api/copilotkit 时不带头，服务端用 SILICONFLOW_API_KEY（本地 .env.local、Vercel 环境变量）。
  * 仅在用户在「API」面板保存 Key 时带头（localStorage），方便自带 Key 的高级用户。
+ *
+ * `showDevConsole` 须显式为 false：CopilotKit 在未传该属性时会在 localhost 上默认开启开发台，
+ * 任何底层 SyntaxError（如 JSON 解析）都会以红色横幅弹出「Unexpected end of JSON input」。
  */
 export function CopilotProviders({ children }: { children: ReactNode }) {
   /** 浏览器覆盖；null = 交给服务端环境变量 */
@@ -57,10 +60,46 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /** 若某次 GraphQL 返回 Content-Length: 0，urql 解析会抛 SyntaxError；补成合法 JSON，且不消费流式正文 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const orig = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const res = await orig(input, init);
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof Request
+            ? input.url
+            : String(input);
+      if (!url.includes("/api/copilotkit")) return res;
+      if (res.ok && res.headers.get("content-length") === "0") {
+        return new Response(JSON.stringify({ errors: [{ message: "Empty runtime response" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return res;
+    };
+    return () => {
+      window.fetch = orig;
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/copilotkit")
-      .then((r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (!r.ok) return null;
+        const text = await r.text();
+        const trimmed = text.trim();
+        if (!trimmed) return null;
+        try {
+          return JSON.parse(trimmed) as { serverKeyConfigured?: boolean };
+        } catch {
+          return null;
+        }
+      })
       .then((j: { serverKeyConfigured?: boolean } | null) => {
         if (cancelled || !j || typeof j.serverKeyConfigured !== "boolean") return;
         setServerKeyConfigured(j.serverKeyConfigured);
@@ -107,6 +146,7 @@ export function CopilotProviders({ children }: { children: ReactNode }) {
       <CopilotKit
         runtimeUrl="/api/copilotkit"
         enableInspector={false}
+        showDevConsole={false}
         headers={headers}
       >
         {children}
