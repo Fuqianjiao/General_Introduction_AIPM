@@ -543,28 +543,26 @@ export default function MainPage({ navigate }: Props) {
         <div className="lobster-shot-grid">
           {[
             {
+              id: "left-routing",
               src: "/images/lobster-okr-draft.jpg",
               title: "多 Agent 协作的本质：任务路由",
               desc: "我说一句话，Moltbot 自动判断该交给哪个 Agent——这背后是意图识别 + 角色边界的设计，不是简单的转发。",
             },
             {
+              id: "right-okr",
               src: "/images/lobster-moltbot-dialog.jpg",
               title: "Agent 有没有用，OKR 是最好的验证",
               desc: "让每个 Agent 基于职责独立输出目标，再由 Moltbot 汇总校准——这是我测试 Agent 是否真正\"懂自己角色\"的方式。",
             },
           ].map((item) => (
-            <figure key={item.src} className="lobster-shot-card">
+            <figure key={item.id} className="lobster-shot-card">
               <div className="lobster-shot-media">
                 <div className="lobster-shot-topbar" aria-hidden="true">
                   <span className="lobster-dot lobster-dot-red" />
                   <span className="lobster-dot lobster-dot-yellow" />
                   <span className="lobster-dot lobster-dot-green" />
                 </div>
-                <img
-                  src={item.src}
-                  alt={item.title}
-                  className="lobster-shot-image"
-                />
+                <img src={item.src} alt={item.title} className="lobster-shot-image" />
               </div>
               <figcaption className="lobster-shot-caption">
                 <div className="lobster-shot-title">{item.title}</div>

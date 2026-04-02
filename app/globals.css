@@ -507,15 +507,20 @@ body {
   }
 }
 
-/* Lobster Legion screenshots */
+/* 龙虾军团：截图展示区 */
 .lobster-shot-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2rem;
 }
 
+.lobster-shot-grid > * {
+  min-width: 0;
+}
+
 .lobster-shot-card {
   margin: 0;
+  width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow: hidden;
@@ -530,7 +535,7 @@ body {
 }
 
 .lobster-shot-media {
-  padding: 0.85rem;
+  padding: 0.95rem;
   background: linear-gradient(180deg, rgba(8, 10, 18, 0.95) 0%, rgba(6, 9, 16, 0.96) 100%);
 }
 
@@ -544,7 +549,7 @@ body {
 .lobster-dot {
   width: 0.62rem;
   height: 0.62rem;
-  border-radius: 50%;
+  border-radius: 999px;
   display: inline-block;
 }
 
@@ -562,6 +567,7 @@ body {
 
 .lobster-shot-image {
   width: 100%;
+  max-width: 100%;
   height: auto;
   object-fit: cover;
   display: block;
@@ -589,10 +595,11 @@ body {
 @media (max-width: 1024px) {
   .lobster-shot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
   }
 
   .lobster-shot-media {
-    padding: 0.65rem;
+    padding: 0.7rem;
   }
 
   .lobster-shot-caption {
