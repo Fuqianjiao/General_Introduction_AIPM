@@ -507,6 +507,105 @@ body {
   }
 }
 
+/* Lobster Legion screenshots */
+.lobster-shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.lobster-shot-card {
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+
+.lobster-shot-card:hover {
+  border-color: rgba(0, 229, 255, 0.28);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.lobster-shot-media {
+  padding: 0.85rem;
+  background: linear-gradient(180deg, rgba(8, 10, 18, 0.95) 0%, rgba(6, 9, 16, 0.96) 100%);
+}
+
+.lobster-shot-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.lobster-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.lobster-dot-red {
+  background: #ff5f57;
+}
+
+.lobster-dot-yellow {
+  background: #febc2e;
+}
+
+.lobster-dot-green {
+  background: #28c840;
+}
+
+.lobster-shot-image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  display: block;
+  border-radius: 8px;
+  background: rgba(4, 6, 12, 0.9);
+}
+
+.lobster-shot-caption {
+  padding: 1rem 1.25rem;
+}
+
+.lobster-shot-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.lobster-shot-desc {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+  .lobster-shot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lobster-shot-media {
+    padding: 0.65rem;
+  }
+
+  .lobster-shot-caption {
+    padding: 0.95rem 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .lobster-shot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

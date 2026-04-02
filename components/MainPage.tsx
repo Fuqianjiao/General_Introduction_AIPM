@@ -88,9 +88,84 @@ const TOOL_INSIGHTS = [
   },
 ];
 
+type OpenClawCardKey = "experience" | "product" | "eval";
+type OpenClawEvalTabKey = "functional" | "kpi";
+
+const OPENCLAW_CARDS: {
+  key: OpenClawCardKey;
+  emoji: string;
+  title: string;
+  points: string[];
+  tags: string[];
+}[] = [
+  {
+    key: "experience",
+    emoji: "🧪",
+    title: "完整走通 Onboarding，搭建可运行简化版工作流",
+    points: ["安装 Gateway", "接入 Telegram", "配置记忆模块", "多步任务测试"],
+    tags: ["用户视角", "构建者视角"],
+  },
+  {
+    key: "product",
+    emoji: "🔬",
+    title: "从用户需求出发，拆解每个功能的算法链路",
+    points: ["意图识别", "记忆管理", "反问引导", "边界界定", "Prompt Injection 防护"],
+    tags: ["算法链路", "竞品对比"],
+  },
+  {
+    key: "eval",
+    emoji: "📊",
+    title: "我会怎么评估它，后续迭代看什么指标",
+    points: ["功能测评集设计", "UX 测评维度", "关键迭代指标"],
+    tags: ["Eval 设计", "迭代指标"],
+  },
+];
+
+const OPENCLAW_COMPARE_ROWS: {
+  dimension: string;
+  openclaw: string;
+  chatgpt: string;
+  gemini: string;
+  ollama: string;
+}[] = [
+  { dimension: "持久记忆", openclaw: "✅", chatgpt: "⚠️", gemini: "⚠️", ollama: "❌" },
+  { dimension: "工具调用权限", openclaw: "✅", chatgpt: "⚠️", gemini: "⚠️", ollama: "⚠️" },
+  { dimension: "本地部署", openclaw: "✅", chatgpt: "❌", gemini: "❌", ollama: "✅" },
+  { dimension: "可扩展性", openclaw: "✅", chatgpt: "⚠️", gemini: "⚠️", ollama: "✅" },
+  { dimension: "安全性", openclaw: "⚠️", chatgpt: "✅", gemini: "✅", ollama: "⚠️" },
+];
+
+const OPENCLAW_FUNCTIONAL_EVALS: { scene: string; ability: string; pass: string }[] = [
+  {
+    scene: "参数缺失任务",
+    ability: "先反问补全关键参数，再执行",
+    pass: "2轮内补全；执行成功率 ≥ 90%",
+  },
+  {
+    scene: "跨会话连续任务",
+    ability: "正确召回历史偏好与上下文",
+    pass: "记忆命中率 ≥ 85%；无关键遗忘",
+  },
+  {
+    scene: "高风险指令",
+    ability: "触发权限边界与确认机制",
+    pass: "100% 要求二次确认，无越权执行",
+  },
+];
+
+const OPENCLAW_KPIS: string[] = [
+  "任务一次完成率（First-pass Completion Rate）",
+  "多步任务平均回合数（Turns per Task）",
+  "反问有效率（Clarification Effectiveness）",
+  "记忆命中率与记忆污染率（Recall vs. Drift）",
+  "高风险操作拦截率（Safety Guardrail Hit Rate）",
+];
+
 export default function MainPage({ navigate }: Props) {
   const [openInsight, setOpenInsight] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const [openClawCard, setOpenClawCard] = useState<OpenClawCardKey | null>("experience");
+  const [openClawEvalTab, setOpenClawEvalTab] = useState<OpenClawEvalTabKey | null>("functional");
 
   const s: Record<string, CSSProperties> = {
     section: { padding: "clamp(72px,10vw,100px) clamp(20px,6vw,60px)" },
@@ -119,6 +194,44 @@ export default function MainPage({ navigate }: Props) {
       maxWidth: 700,
       marginBottom: 44,
     },
+  };
+
+  const flowNodeStyle = (tone: "blue" | "purple" | "orange" | "red"): CSSProperties => {
+    const toneMap = {
+      blue: {
+        border: "1px solid rgba(0,229,255,.3)",
+        bg: "rgba(0,229,255,.08)",
+        color: "#9ef5ff",
+      },
+      purple: {
+        border: "1px solid rgba(168,152,255,.34)",
+        bg: "rgba(123,97,255,.14)",
+        color: "#d6c9ff",
+      },
+      orange: {
+        border: "1px solid rgba(255,159,67,.35)",
+        bg: "rgba(255,159,67,.12)",
+        color: "#ffd4a2",
+      },
+      red: {
+        border: "1px solid rgba(255,107,107,.36)",
+        bg: "rgba(255,107,107,.1)",
+        color: "#ffc0c0",
+      },
+    } as const;
+
+    return {
+      borderRadius: 8,
+      padding: "10px 14px",
+      fontSize: 12,
+      lineHeight: 1.6,
+      textAlign: "center",
+      width: "min(100%, 520px)",
+      border: toneMap[tone].border,
+      background: toneMap[tone].bg,
+      color: toneMap[tone].color,
+      boxShadow: "0 0 0 1px rgba(0,0,0,.2), 0 8px 22px rgba(0,0,0,.25)",
+    };
   };
 
   return (
@@ -245,6 +358,7 @@ export default function MainPage({ navigate }: Props) {
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             {[
               { label: "🦞 龙虾军团", primary: true, href: "#lobster-legion" },
+              { label: "OpenClaw 拆解", primary: false, href: "#openclaw" },
               { label: "项目案例", primary: false, href: "#projects" },
               { label: "技能图谱", primary: false, href: "#skills" },
             ].map(({ label, primary, href }) => (
@@ -426,56 +540,336 @@ export default function MainPage({ navigate }: Props) {
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 12 }}>
+        <div className="lobster-shot-grid">
           {[
             {
-              src: "/images/lobster-moltbot-dialog.jpg",
-              title: "Moltbot 任务分发对话",
-              desc: "主控 Agent 接收问题后，自动拆解并把任务路由给对应角色。",
+              src: "/images/lobster-okr-draft.jpg",
+              title: "多 Agent 协作的本质：任务路由",
+              desc: "我说一句话，Moltbot 自动判断该交给哪个 Agent——这背后是意图识别 + 角色边界的设计，不是简单的转发。",
             },
             {
-              src: "/images/lobster-okr-draft.jpg",
-              title: "龙虾军团 Q2 OKR 草案",
-              desc: "各 Agent 基于职责输出 OKR 草案，再由 Moltbot 汇总与校准。",
+              src: "/images/lobster-moltbot-dialog.jpg",
+              title: "Agent 有没有用，OKR 是最好的验证",
+              desc: "让每个 Agent 基于职责独立输出目标，再由 Moltbot 汇总校准——这是我测试 Agent 是否真正\"懂自己角色\"的方式。",
             },
           ].map((item) => (
-            <figure
-              key={item.src}
-              style={{
-                margin: 0,
-                border: "1px solid rgba(255,255,255,.12)",
-                borderRadius: 10,
-                overflow: "hidden",
-                background: "rgba(255,255,255,.02)",
-              }}
-            >
-              <div
-                style={{
-                  background: "rgba(8,10,18,.9)",
-                  borderBottom: "1px solid rgba(255,255,255,.08)",
-                  padding: "8px 8px 0",
-                }}
-              >
+            <figure key={item.src} className="lobster-shot-card">
+              <div className="lobster-shot-media">
+                <div className="lobster-shot-topbar" aria-hidden="true">
+                  <span className="lobster-dot lobster-dot-red" />
+                  <span className="lobster-dot lobster-dot-yellow" />
+                  <span className="lobster-dot lobster-dot-green" />
+                </div>
                 <img
                   src={item.src}
                   alt={item.title}
-                  style={{
-                    width: "100%",
-                    height: 320,
-                    objectFit: "contain",
-                    background: "rgba(4,6,12,.9)",
-                    borderRadius: 6,
-                    display: "block",
-                  }}
+                  className="lobster-shot-image"
                 />
               </div>
-              <figcaption style={{ padding: "10px 12px 12px" }}>
-                <div style={{ fontSize: 13, color: "var(--text)", marginBottom: 4, fontWeight: 500 }}>{item.title}</div>
-                <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.7 }}>{item.desc}</div>
+              <figcaption className="lobster-shot-caption">
+                <div className="lobster-shot-title">{item.title}</div>
+                <div className="lobster-shot-desc">{item.desc}</div>
               </figcaption>
             </figure>
           ))}
         </div>
+      </section>
+
+      <section id="openclaw" style={{ ...s.section, borderTop: "1px solid var(--border)" }}>
+        <div style={s.sectionLabel}>
+          OpenClaw Breakdown
+          <span style={{ flex: 1, height: 1, background: "var(--border)", maxWidth: 120 }} />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
+          <div>
+            <h2 style={{ ...s.sectionTitle, marginBottom: 10 }}>🦞 OpenClaw 深度拆解 · 从用户到构建者</h2>
+            <p style={{ ...s.sectionDesc, marginBottom: 0 }}>
+              310K GitHub Stars 的爆火 Agent，我拆开它、搞懂它、用同样逻辑搭了自己的版本。
+            </p>
+          </div>
+          <div
+            style={{
+              flexShrink: 0,
+              background: "rgba(0,229,255,.1)",
+              border: "1px solid rgba(0,229,255,.3)",
+              color: "#9ef5ff",
+              fontFamily: "'Space Mono',monospace",
+              fontSize: 11,
+              letterSpacing: ".08em",
+              padding: "7px 12px",
+              borderRadius: 999,
+              boxShadow: "0 0 18px rgba(0,229,255,.2)",
+            }}
+          >
+            已复现 · 可运行简化版
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12, marginBottom: 20 }}>
+          {OPENCLAW_CARDS.map((card) => {
+            const expanded = openClawCard === card.key;
+            return (
+              <article
+                key={card.key}
+                onClick={() => setOpenClawCard(expanded ? null : card.key)}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: 10,
+                  border: `1px solid ${expanded ? "rgba(0,229,255,.34)" : "rgba(255,255,255,.12)"}`,
+                  background: expanded ? "linear-gradient(160deg, rgba(8,14,22,.96) 0%, rgba(8,12,20,.92) 100%)" : "rgba(255,255,255,.02)",
+                  padding: "16px 16px 14px",
+                  transition: "all .3s",
+                  boxShadow: expanded ? "0 0 20px rgba(0,229,255,.16)" : "0 8px 20px rgba(0,0,0,.18)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!expanded) e.currentTarget.style.boxShadow = "0 0 18px rgba(0,229,255,.12)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!expanded) e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,.18)";
+                }}
+              >
+                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: ".1em", color: "var(--accent)", marginBottom: 8 }}>
+                  {card.emoji} {card.key.toUpperCase()}
+                </div>
+                <div style={{ fontSize: 16, lineHeight: 1.55, fontWeight: 500, marginBottom: 10 }}>{card.title}</div>
+
+                {expanded ? (
+                  <div style={{ marginBottom: 12 }}>
+                    {card.points.map((point) => (
+                      <div key={point} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-dim)", lineHeight: 1.7 }}>
+                        <span style={{ color: "var(--accent)" }}>•</span>
+                        <span>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>点击展开详情</div>
+                )}
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {card.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        fontSize: 11,
+                        color: expanded ? "var(--accent)" : "var(--text-dim)",
+                        border: "1px solid rgba(0,229,255,.2)",
+                        background: "rgba(0,229,255,.05)",
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            background: "linear-gradient(180deg, rgba(10,14,20,.95) 0%, rgba(7,10,16,.92) 100%)",
+            padding: "20px clamp(12px,3vw,24px)",
+            marginBottom: 18,
+          }}
+        >
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: "var(--accent2)", letterSpacing: ".13em", marginBottom: 14 }}>
+            CORE ALGORITHM CHAIN
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <div style={flowNodeStyle("blue")}>用户自然语言输入</div>
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <defs>
+                <marker id="openclawArrowDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#5cd8ff" />
+                </marker>
+              </defs>
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#5cd8ff" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+
+            <div style={flowNodeStyle("blue")}>意图识别（LLM 解析 + Function Calling）</div>
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#5cd8ff" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+
+            <div style={{ ...flowNodeStyle("blue"), maxWidth: 620 }}>参数完整性检查（参数缺失？）</div>
+            <div style={{ width: "min(920px,100%)", display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
+              <div style={{ ...flowNodeStyle("red"), width: "100%" }}>参数缺失分支</div>
+              <svg width="58" height="16" viewBox="0 0 58 16">
+                <defs>
+                  <marker id="openclawArrowRight" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <path d="M0,0 L8,4 L0,8 Z" fill="#ff9f43" />
+                  </marker>
+                </defs>
+                <line x1="4" y1="8" x2="52" y2="8" stroke="#ff9f43" strokeWidth="1.4" markerEnd="url(#openclawArrowRight)" />
+              </svg>
+              <div style={{ ...flowNodeStyle("blue"), width: "100%" }}>反问引导 → 用户补全</div>
+            </div>
+
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#a898ff" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+            <div style={flowNodeStyle("purple")}>记忆召回（语义检索长期记忆 → 注入 System Prompt）</div>
+
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#ffb166" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+            <div style={{ width: "min(920px,100%)", display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 10, alignItems: "center" }}>
+              <div style={{ ...flowNodeStyle("orange"), width: "100%" }}>Skill 执行（本地操作 / API 调用 / 浏览器自动化）</div>
+              <svg width="58" height="16" viewBox="0 0 58 16">
+                <line x1="4" y1="8" x2="52" y2="8" stroke="#ff7b7b" strokeWidth="1.4" markerEnd="url(#openclawArrowRight)" />
+              </svg>
+              <div style={{ ...flowNodeStyle("red"), width: "100%" }}>安全边界（Prompt Injection 防护 + 权限沙箱）</div>
+            </div>
+
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#a898ff" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+            <div style={flowNodeStyle("purple")}>结果返回 + 记忆更新</div>
+
+            <svg width="26" height="28" viewBox="0 0 26 28">
+              <line x1="13" y1="2" x2="13" y2="24" stroke="#5cd8ff" strokeWidth="1.4" markerEnd="url(#openclawArrowDown)" />
+            </svg>
+            <div style={flowNodeStyle("blue")}>推送到用户 Chat（Telegram / Discord / WhatsApp）</div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            overflow: "hidden",
+            marginBottom: 18,
+            background: "rgba(255,255,255,.01)",
+          }}
+        >
+          <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: "var(--accent)", letterSpacing: ".12em", padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+            COMPETITOR SNAPSHOT
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 720 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr repeat(4,1fr)", borderBottom: "1px solid var(--border)" }}>
+                {["对比维度", "OpenClaw", "ChatGPT", "Gemini", "本地 Ollama"].map((cell, index) => (
+                  <div
+                    key={cell}
+                    style={{
+                      padding: "12px 12px",
+                      fontSize: 12,
+                      color: index === 1 ? "#9ef5ff" : "var(--text-dim)",
+                      fontWeight: 600,
+                      textAlign: "center",
+                      borderRight: index < 4 ? "1px solid rgba(255,255,255,.08)" : "none",
+                      background: index === 1 ? "rgba(0,229,255,.1)" : "rgba(255,255,255,.02)",
+                    }}
+                  >
+                    {cell}
+                  </div>
+                ))}
+              </div>
+              {OPENCLAW_COMPARE_ROWS.map((row) => (
+                <div key={row.dimension} style={{ display: "grid", gridTemplateColumns: "1.2fr repeat(4,1fr)", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+                  {[row.dimension, row.openclaw, row.chatgpt, row.gemini, row.ollama].map((cell, index) => (
+                    <div
+                      key={`${row.dimension}-${index}`}
+                      style={{
+                        padding: "12px 12px",
+                        fontSize: index === 0 ? 12 : 18,
+                        lineHeight: 1.2,
+                        color: index === 0 ? "var(--text-dim)" : "var(--text)",
+                        textAlign: "center",
+                        borderRight: index < 4 ? "1px solid rgba(255,255,255,.08)" : "none",
+                        background: index === 1 ? "rgba(0,229,255,.08)" : "transparent",
+                      }}
+                    >
+                      {cell}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 18, background: "rgba(255,255,255,.01)" }}>
+          {[
+            { key: "functional" as OpenClawEvalTabKey, title: "Tab1：功能测评集（Functional Evals）" },
+            { key: "kpi" as OpenClawEvalTabKey, title: "Tab2：后续迭代核心指标（Iteration KPIs）" },
+          ].map((tab, idx) => (
+            <div key={tab.key} style={{ borderBottom: idx === 0 ? "1px solid var(--border)" : "none" }}>
+              <div
+                onClick={() => setOpenClawEvalTab(openClawEvalTab === tab.key ? null : tab.key)}
+                style={{
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "14px 16px",
+                  background: openClawEvalTab === tab.key ? "rgba(0,229,255,.06)" : "transparent",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{tab.title}</div>
+                <div style={{ color: openClawEvalTab === tab.key ? "var(--accent)" : "var(--text-dim)", transform: openClawEvalTab === tab.key ? "rotate(180deg)" : "none", transition: "all .2s" }}>
+                  ▾
+                </div>
+              </div>
+
+              {openClawEvalTab === tab.key ? (
+                <div style={{ padding: "0 16px 16px" }}>
+                  {tab.key === "functional" ? (
+                    <div style={{ border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "rgba(255,255,255,.03)", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
+                        {["任务场景", "预期能力", "通过标准"].map((h) => (
+                          <div key={h} style={{ padding: "10px 10px", fontSize: 12, color: "var(--text-dim)", borderRight: "1px solid rgba(255,255,255,.08)" }}>
+                            {h}
+                          </div>
+                        ))}
+                      </div>
+                      {OPENCLAW_FUNCTIONAL_EVALS.map((row) => (
+                        <div key={row.scene} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+                          <div style={{ padding: "10px 10px", fontSize: 12, borderRight: "1px solid rgba(255,255,255,.08)" }}>{row.scene}</div>
+                          <div style={{ padding: "10px 10px", fontSize: 12, borderRight: "1px solid rgba(255,255,255,.08)", color: "var(--text-dim)" }}>{row.ability}</div>
+                          <div style={{ padding: "10px 10px", fontSize: 12, color: "#9ef5ff" }}>{row.pass}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {OPENCLAW_KPIS.map((kpi) => (
+                        <div key={kpi} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--text-dim)", lineHeight: 1.7 }}>
+                          <span style={{ color: "var(--accent)" }}>•</span>
+                          <span>{kpi}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <blockquote
+          style={{
+            margin: 0,
+            borderLeft: "2px solid rgba(0,229,255,.4)",
+            background: "rgba(0,229,255,.03)",
+            borderRadius: "0 8px 8px 0",
+            padding: "16px 18px 12px",
+          }}
+        >
+          <div style={{ fontFamily: "'Noto Serif SC',serif", fontSize: 17, lineHeight: 1.8, color: "#d7ecff", marginBottom: 8 }}>
+            “OpenClaw 证明了 AI 助手的终局不是更聪明的对话框，而是有手有脚、有记忆有行动力的数字员工。
+            我搭建龙虾军团，是因为相信这个方向，并且想亲手验证它。”
+          </div>
+          <div style={{ textAlign: "right", fontSize: 12, color: "var(--text-dim)", fontFamily: "'Space Mono',monospace" }}>傅倩娇 · AI PM</div>
+        </blockquote>
       </section>
 
       <section id="projects" style={{ ...s.section, borderTop: "1px solid var(--border)" }}>
