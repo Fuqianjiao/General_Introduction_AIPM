@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "傅倩娇 · AI产品经理",
-  description: "2年电商AI产品经验，深耕RPA+LLM融合场景，寻找AI笔记/知识库方向产品机会",
+  description: "2年AI产品经验，擅长用AI工具链解决真实问题，自建多Agent系统并推动项目落地",
 };
 
 const BGM_PRELOAD_HREF =

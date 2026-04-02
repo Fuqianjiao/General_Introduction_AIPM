@@ -32,9 +32,9 @@ interface Props {
 
 /** ② 快捷问题 — 文案与设计稿一致；青系胶囊条 */
 const QUICK_ACTIONS: { label: string; q: string }[] = [
+  { label: "龙虾军团", q: "她的龙虾军团多 Agent 系统是怎么搭建和使用的？" },
   { label: "核心项目", q: "她有哪些核心项目经历？" },
-  { label: "AI笔记看法", q: "她对 AI 笔记产品有什么洞察？" },
-  { label: "岗位匹配度", q: "她与阿里 AI 笔记岗位的匹配度如何？" },
+  { label: "AI工具实践", q: "她是怎么用 AI 工具解决真实问题的？" },
   { label: "技能库", q: "请展示傅倩娇的技术能力图谱与核心技能栈。" },
 ];
 
@@ -619,7 +619,7 @@ function JobMatchCardWithContact({
               setOpen(false);
               if (typeof window !== "undefined") {
                 window.setTimeout(() => {
-                  document.getElementById("match")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  document.getElementById("projects")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }, 280);
               }
             }}
@@ -634,7 +634,7 @@ function JobMatchCardWithContact({
               fontFamily: "'Noto Sans SC',sans-serif",
             }}
           >
-            <div style={{ fontSize: 10, color: "#00e5ff" }}>查看项目佐证 →</div>
+            <div style={{ fontSize: 10, color: "#00e5ff" }}>查看项目案例 →</div>
           </button>
           <button
             type="button"

@@ -129,9 +129,9 @@ export const RESUME_DATA = {
         },
         {
           kind: "internal" as const,
-          label: "站内：岗位匹配与能力雷达",
+          label: "站内：工作经历与项目成果",
           page: "main" as const,
-          hash: "match",
+          hash: "projects",
         },
       ],
     },
