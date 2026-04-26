@@ -263,209 +263,149 @@ export default function MainPage({ navigate }: Props) {
             animation: "fadeUp 1s ease both",
           }}
         >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(0,229,255,.08)",
-              border: "1px solid rgba(0,229,255,.2)",
-              borderRadius: 2,
-              padding: "6px 14px",
-              fontFamily: "'Space Mono',monospace",
-              fontSize: 11,
-              color: "var(--accent)",
-              letterSpacing: "0.12em",
-              marginBottom: 32,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                background: "var(--accent)",
-                borderRadius: "50%",
-                animation: "pulse 2s infinite",
-                flexShrink: 0,
-              }}
-            />
-            AI Product Manager · 通用个人介绍
-          </div>
-
-          <h1
-            style={{
-              fontFamily: "'Noto Serif SC',serif",
-              fontSize: "clamp(42px,6vw,72px)",
-              fontWeight: 300,
-              lineHeight: 1.15,
-              marginBottom: 24,
-            }}
-          >
-            用 <span style={{ color: "var(--accent)" }}>AI 工具链</span>
-            <br />
-            驱动
-            <span
-              style={{
-                background: "linear-gradient(135deg,var(--accent2),var(--accent))",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              业务增长
-            </span>
-          </h1>
-
-          <p
-            style={{
-              fontSize: 16,
-              color: "var(--text-dim)",
-              lineHeight: 1.85,
-              maxWidth: 620,
-              marginBottom: 48,
-            }}
-          >
-            2年AI产品经验，主导多个百万级降本项目。
-            <br />
-            深耕 RPA+LLM 融合场景，自建多 Agent 个人系统，
-            <br />
-            兼具工程落地与产品设计双视角。
-          </p>
-
-          <div style={{ display: "flex", gap: 34, marginBottom: 48, flexWrap: "wrap" }}>
-            {[
-              ["150W+", "年化降本"],
-              ["64", "交付应用"],
-              ["95%", "客户满意度"],
-              ["80%", "应用市场月活提升"],
-            ].map(([n, l]) => (
-              <div key={l}>
-                <div
-                  style={{
-                    fontFamily: "'Space Mono',monospace",
-                    fontSize: 28,
-                    color: "var(--accent)",
-                    fontWeight: 700,
-                    lineHeight: 1,
-                  }}
-                >
-                  {n}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>{l}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-            {[
-              { label: "🦞 龙虾军团", primary: true, href: "#lobster-legion" },
-              { label: "OpenClaw 拆解", primary: false, href: "#openclaw" },
-              { label: "项目案例", primary: false, href: "#projects" },
-              { label: "技能图谱", primary: false, href: "#skills" },
-            ].map(({ label, primary, href }) => (
-              <a
-                key={label}
-                href={href}
+          <div className="hero-layout">
+            <div>
+              <div
                 style={{
-                  background: primary ? "var(--accent)" : "transparent",
-                  color: primary ? "var(--bg)" : "var(--text)",
-                  border: primary ? "none" : "1px solid rgba(255,255,255,.15)",
-                  padding: "14px 28px",
-                  fontFamily: "'Noto Sans SC',sans-serif",
-                  fontSize: 14,
-                  fontWeight: primary ? 600 : 400,
-                  cursor: "pointer",
-                  borderRadius: 2,
-                  textDecoration: "none",
                   display: "inline-flex",
                   alignItems: "center",
-                  transition: "all .3s",
+                  gap: 8,
+                  background: "rgba(0,229,255,.08)",
+                  border: "1px solid rgba(0,229,255,.2)",
+                  borderRadius: 2,
+                  padding: "6px 14px",
+                  fontFamily: "'Space Mono',monospace",
+                  fontSize: 11,
+                  color: "var(--accent)",
+                  letterSpacing: "0.12em",
+                  marginBottom: 18,
                 }}
               >
-                {label}
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="digital-team" style={{ ...s.section, borderTop: "1px solid var(--border)" }}>
-        <div style={s.sectionLabel}>
-          Digital Team
-          <span style={{ flex: 1, height: 1, background: "var(--border)", maxWidth: 120 }} />
-        </div>
-        <h2 style={s.sectionTitle}>数字团队</h2>
-        <p style={s.sectionDesc}>
-          我把 AI 工具当作“数字同事”来组织协作：明确角色边界、统一交付标准，让每个环节都可追踪、可复盘、可优化。
-        </p>
-
-        <div className="digital-team-grid">
-          {DIGITAL_TEAM.map((m, i) => {
-            const isCyan = m.accent === "cyan";
-            const border = isCyan ? "rgba(0,229,255,.22)" : "rgba(168,152,255,.28)";
-            const glow = isCyan ? "rgba(0,229,255,.12)" : "rgba(123,97,255,.14)";
-            const tagBg = isCyan ? "rgba(0,229,255,.1)" : "rgba(123,97,255,.12)";
-            const tagColor = isCyan ? "#7df4ff" : "#c4b5fd";
-            return (
-              <div
-                key={m.tool}
-                className={i === DIGITAL_TEAM.length - 1 ? "digital-team-card--span" : undefined}
-                style={{
-                  position: "relative",
-                  padding: "14px 14px 16px",
-                  borderRadius: 10,
-                  background: "linear-gradient(165deg, rgba(14,16,24,.96) 0%, rgba(8,10,18,.92) 100%)",
-                  border: `1px solid ${border}`,
-                  boxShadow: `0 0 0 1px ${glow}, 0 10px 36px rgba(0,0,0,.35)`,
-                  overflow: "hidden",
-                }}
-              >
-                <div
+                <span
                   style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    width: 56,
-                    height: 56,
-                    background: `radial-gradient(circle at 100% 0%, ${glow}, transparent 70%)`,
-                    pointerEvents: "none",
+                    width: 6,
+                    height: 6,
+                    background: "var(--accent)",
+                    borderRadius: "50%",
+                    animation: "pulse 2s infinite",
+                    flexShrink: 0,
                   }}
                 />
-                <div
-                  style={{
-                    fontFamily: "'Space Mono',monospace",
-                    fontSize: 9,
-                    color: "var(--text-dim)",
-                    letterSpacing: "0.1em",
-                  }}
-                >
-                  MEMBER · {String(i + 1).padStart(2, "0")}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", marginTop: 6, lineHeight: 1.35 }}>
-                  {m.role}
-                </div>
-                <div
-                  style={{
-                    display: "inline-block",
-                    marginTop: 8,
-                    fontFamily: "'Space Mono',monospace",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    padding: "3px 9px",
-                    borderRadius: 4,
-                    background: tagBg,
-                    border: `1px solid ${border}`,
-                    color: tagColor,
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {m.tool}
-                </div>
-                <p style={{ margin: "10px 0 0", fontSize: 12, lineHeight: 1.65, color: "var(--text-dim)" }}>
-                  {m.duty}
-                </p>
+                AI Product Manager · 通用个人介绍
               </div>
-            );
-          })}
+
+              <h1
+                style={{
+                  fontFamily: "'Noto Serif SC',serif",
+                  fontSize: "clamp(42px,6vw,72px)",
+                  fontWeight: 300,
+                  lineHeight: 1.15,
+                  marginBottom: 24,
+                }}
+              >
+                用 <span style={{ color: "var(--accent)" }}>AI 工具链</span>
+                <br />
+                驱动
+                <span
+                  style={{
+                    background: "linear-gradient(135deg,var(--accent2),var(--accent))",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                  }}
+                >
+                  业务增长
+                </span>
+              </h1>
+
+              <p
+                style={{
+                  fontSize: 16,
+                  color: "var(--text-dim)",
+                  lineHeight: 1.85,
+                  maxWidth: 620,
+                  marginBottom: 48,
+                }}
+              >
+                2年AI产品经验，主导多个百万级降本项目。
+                <br />
+                深耕 RPA+LLM 融合场景，自建多 Agent 个人系统，
+                <br />
+                兼具工程落地与产品设计双视角。
+              </p>
+
+              <div style={{ display: "flex", gap: 34, marginBottom: 48, flexWrap: "wrap" }}>
+                {[
+                  ["150W+", "年化降本"],
+                  ["64", "交付应用"],
+                  ["95%", "客户满意度"],
+                  ["80%", "应用市场月活提升"],
+                ].map(([n, l]) => (
+                  <div key={l}>
+                    <div
+                      style={{
+                        fontFamily: "'Space Mono',monospace",
+                        fontSize: 28,
+                        color: "var(--accent)",
+                        fontWeight: 700,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {n}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>{l}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                {[
+                  { label: "🦞 龙虾军团", primary: true, href: "#lobster-legion" },
+                  { label: "OpenClaw 拆解", primary: false, href: "#openclaw" },
+                  { label: "项目案例", primary: false, href: "#projects" },
+                  { label: "技能图谱", primary: false, href: "#skills" },
+                ].map(({ label, primary, href }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    style={{
+                      background: primary ? "var(--accent)" : "transparent",
+                      color: primary ? "var(--bg)" : "var(--text)",
+                      border: primary ? "none" : "1px solid rgba(255,255,255,.15)",
+                      padding: "14px 28px",
+                      fontFamily: "'Noto Sans SC',sans-serif",
+                      fontSize: 14,
+                      fontWeight: primary ? 600 : 400,
+                      cursor: "pointer",
+                      borderRadius: 2,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      transition: "all .3s",
+                    }}
+                  >
+                    {label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <div id="digital-team" className="digital-team-stage">
+              <div className="digital-team-grid">
+                {DIGITAL_TEAM.map((m, idx) => (
+                  <article
+                    key={m.tool}
+                    className={`digital-team-card${idx === DIGITAL_TEAM.length - 1 ? " digital-team-card--span" : ""}`}
+                    data-accent={m.accent}
+                  >
+                    <div className="digital-team-card-member">MEMBER · 0{idx + 1}</div>
+                    <h3 className="digital-team-card-role">{m.role}</h3>
+                    <span className="digital-team-card-tool">{m.tool}</span>
+                    <p className="digital-team-card-duty">{m.duty}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -545,6 +485,7 @@ export default function MainPage({ navigate }: Props) {
             {
               id: "left-routing",
               src: "/images/lobster-okr-draft.jpg",
+              extraSrc: "/images/lobster-life-announcement.png",
               title: "多 Agent 协作的本质：任务路由",
               desc: "我说一句话，Moltbot 自动判断该交给哪个 Agent——这背后是意图识别 + 角色边界的设计，不是简单的转发。",
             },
@@ -562,7 +503,10 @@ export default function MainPage({ navigate }: Props) {
                   <span className="lobster-dot lobster-dot-yellow" />
                   <span className="lobster-dot lobster-dot-green" />
                 </div>
-                <img src={item.src} alt={item.title} className="lobster-shot-image" />
+                <div className="lobster-shot-image-stack">
+                  <img src={item.src} alt={item.title} className="lobster-shot-image" />
+                  {item.extraSrc ? <img src={item.extraSrc} alt={`${item.title} 补充图`} className="lobster-shot-image lobster-shot-image-secondary" /> : null}
+                </div>
               </div>
               <figcaption className="lobster-shot-caption">
                 <div className="lobster-shot-title">{item.title}</div>
